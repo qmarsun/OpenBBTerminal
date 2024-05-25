@@ -1,27 +1,33 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { DocSearchButton, useDocSearchKeyboardEvents } from "@docsearch/react";
+import "@docsearch/css";
+import {
+  DocSearchButton,
+  useDocSearchKeyboardEvents,
+} from "@docsearch/react";
+import BrowserOnly from "@docusaurus/BrowserOnly";
 import Head from "@docusaurus/Head";
 import Link from "@docusaurus/Link";
-import { useHistory } from "@docusaurus/router";
+import Translate from "@docusaurus/Translate";
+import { useHistory, useLocation } from "@docusaurus/router";
 import { isRegexpStringMatch } from "@docusaurus/theme-common";
-import { useSearchPage } from "@docusaurus/theme-common/internal";
 import {
   useAlgoliaContextualFacetFilters,
   useSearchResultUrlProcessor,
 } from "@docusaurus/theme-search-algolia/client";
-import Translate from "@docusaurus/Translate";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
-import { createPortal } from "react-dom";
 import translations from "@theme/SearchTranslations";
-import { useIFrameContext } from "../Root";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useIFrameContext } from "../Root.tsx";
+
 let DocSearchModal = null;
+
 function Hit({ hit, children }) {
   return <Link to={hit.url}>{children}</Link>;
 }
+
 function ResultsFooter({ state, onClose }) {
-  const { generateSearchPageLink } = useSearchPage();
   return (
-    <Link to={generateSearchPageLink(state.query)} onClick={onClose}>
+    <Link to={`/search?q=${state.query}`} onClick={onClose}>
       <Translate
         id="theme.SearchBar.seeAll"
         values={{ count: state.context.nbHits }}
@@ -31,11 +37,14 @@ function ResultsFooter({ state, onClose }) {
     </Link>
   );
 }
+
 function mergeFacetFilters(f1, f2) {
   const normalize = (f) => (typeof f === "string" ? [f] : f);
   return [...normalize(f1), ...normalize(f2)];
 }
+
 function DocSearch({ contextualSearch, externalUrlRegex, ...props }) {
+  const location = useLocation();
   const { siteMetadata } = useDocusaurusContext();
   const processSearchResultUrl = useSearchResultUrlProcessor();
   const contextualSearchFacetFilters = useAlgoliaContextualFacetFilters();
@@ -61,7 +70,7 @@ function DocSearch({ contextualSearch, externalUrlRegex, ...props }) {
     }
     return Promise.all([
       import("@docsearch/react/modal"),
-      import("@docsearch/react/style"),
+      // import("@docsearch/react/style"),
       import("./styles.css"),
     ]).then(([{ DocSearchModal: Modal }]) => {
       DocSearchModal = Modal;
@@ -102,7 +111,7 @@ function DocSearch({ contextualSearch, externalUrlRegex, ...props }) {
     },
   }).current;
   const transformItems = useRef((items) =>
-    props.transformItems
+    (props.transformItems
       ? // Custom transformItems
         props.transformItems(items)
       : // Default transformItems
@@ -110,6 +119,12 @@ function DocSearch({ contextualSearch, externalUrlRegex, ...props }) {
           ...item,
           url: processSearchResultUrl(item.url),
         }))
+    ).filter((item) => {
+      const firstPathSegment = location.pathname.split("/")[1];
+      return !firstPathSegment
+        ? true
+        : item.url.startsWith(`/${firstPathSegment}/`);
+    })
   ).current;
   const resultsFooterComponent = useMemo(
     () =>
@@ -157,31 +172,36 @@ function DocSearch({ contextualSearch, externalUrlRegex, ...props }) {
         translations={translations.button}
       />
 
-      {isOpen &&
-        DocSearchModal &&
-        searchContainer.current &&
-        createPortal(
-          <DocSearchModal
-            onClose={onClose}
-            initialScrollY={window.scrollY}
-            initialQuery={initialQuery}
-            navigator={navigator}
-            transformItems={transformItems}
-            hitComponent={Hit}
-            transformSearchClient={transformSearchClient}
-            {...(props.searchPagePath && {
-              resultsFooterComponent,
-            })}
-            {...props}
-            searchParameters={searchParameters}
-            placeholder={translations.placeholder}
-            translations={translations.modal}
-          />,
-          searchContainer.current
-        )}
+      <BrowserOnly>
+        {() =>
+          isOpen &&
+          DocSearchModal &&
+          searchContainer.current &&
+          createPortal(
+            <DocSearchModal
+              onClose={onClose}
+              initialScrollY={window.scrollY}
+              initialQuery={initialQuery}
+              navigator={navigator}
+              transformItems={transformItems}
+              hitComponent={Hit}
+              transformSearchClient={transformSearchClient}
+              {...(props.searchPagePath && {
+                resultsFooterComponent,
+              })}
+              {...props}
+              searchParameters={searchParameters}
+              placeholder={translations.placeholder}
+              translations={translations.modal}
+            />,
+            searchContainer.current
+          )
+        }
+      </BrowserOnly>
     </>
   );
 }
+
 export default function SearchBar() {
   const { siteConfig } = useDocusaurusContext();
   const { isIFrame } = useIFrameContext();

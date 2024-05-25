@@ -1,46 +1,38 @@
 ---
 title: Installation and Updates
 sidebar_position: 1
-description: TBD
+description:
+  This page provides comprehensive insights about installing and updating
+  the OpenBB Terminal. It discusses system requirements, installation process, common
+  errors and their solutions. Information about updating the OpenBB Terminal through
+  different methods is also covered.
 keywords:
-  [
-    installation,
-    installer,
-    install,
-    guide,
-    mac,
-    windows,
-    linux,
-    python,
-    github,
-    macos,
-    how to,
-    explanation,
-    openbb terminal,
-    pypi,
-    c++,
-    miniconda,
-    library,
-    arm,
-    library,
-    error,
-    raspberry pi,
-  ]
+  - OpenBB Terminal installation
+  - Updating OpenBB Terminal
+  - System requirements for OpenBB Terminal
+  - Installation errors with OpenBB Terminal
+  - Python pip installation
+  - Microsoft Visual C++
+  - Homebrew installation
+  - libomp
+  - Conda installation issue
 ---
 
 import HeadTitle from '@site/src/components/General/HeadTitle.tsx';
 
-<HeadTitle title="Installation and Updates - Terminal | OpenBB Docs" />
+<HeadTitle title="Installation and Updates - Faqs | OpenBB Terminal Docs" />
 
 ## Installation and Updates
 
-<details><summary>How much hard drive space is required?</summary>
+<details>
+<summary mdxType="summary">How much hard drive space is required?</summary>
 
 An installation will use approximately 4-5 GB of space, with additional storage required for optional machine learning models.
 
 </details>
 
-<details><summary>What is the minimum version of Windows or MacOS required to install the OpenBB Terminal?</summary>
+<details>
+<summary mdxType="summary">What is the minimum version of Windows or MacOS required to install the OpenBB Terminal?</summary>
 
 The OpenBB Terminal installation packages are compatible with:
 
@@ -51,7 +43,8 @@ The OpenBB Terminal installation packages are compatible with:
 
 </details>
 
-<details><summary>How do I update my installation to the latest version?</summary>
+<details>
+<summary mdxType="summary">How do I update my installation to the latest version?</summary>
 
 The terminal is constantly being updated with new features and bug fixes. The process for updating will vary by the installation type:
 
@@ -70,7 +63,18 @@ poetry install -E all
 
 </details>
 
-<details><summary>"Microsoft Visual C++ 14.0 or greater is required"</summary>
+### PyPi Nightly
+
+The nightly build can be installed with:
+
+```console
+pip install openbb-terminal-nightly[all]
+```
+
+**Note**: This version may not be stable and should not be used in a production setting.
+
+<details>
+<summary mdxType="summary">"Microsoft Visual C++ 14.0 or greater is required"</summary>
 
 Download and install [C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/), restart the machine, then try again.
 
@@ -80,7 +84,8 @@ Download and install [C++ Build Tools](https://visualstudio.microsoft.com/visual
 
 </details>
 
-<details><summary>Error: failed building wheel for bt</summary>
+<details>
+<summary mdxType="summary">Error: failed building wheel for bt</summary>
 
 There may be an additional message that is printed from this error, stating: "Microsoft Visual C++ 14.0 or greater is required. Get it with "Microsoft C++ Build Tools".
 
@@ -101,13 +106,15 @@ brew install cmake
 
 </details>
 
-<details><summary>Miniconda3 will not install on ARM/Linux Raspberry Pi machines.</summary>
+<details>
+<summary mdxType="summary">Miniconda3 will not install on ARM/Linux Raspberry Pi machines.</summary>
 
 Refer to this issue on the Conda [GitHub](https://github.com/conda/conda/issues/10723) page.
 
 </details>
 
-<details><summary>Error: Library not loaded: '/usr/local/opt/libomp/lib/libomp.dylib'</summary>
+<details>
+<summary mdxType="summary">Error: Library not loaded: '/usr/local/opt/libomp/lib/libomp.dylib'</summary>
 
 This error is resolved by installing libomp from Homebrew:
 

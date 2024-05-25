@@ -1,12 +1,31 @@
 ---
 title: top
-description: OpenBB SDK Function
+description: "This content describes two features: 'Model' and 'Chart'. 'Model'
+  gets repositories sorted by stars or forks with possible category filtering. 'Chart'
+  plots a repo summary. Both procedures involve parameters like 'sortby', 'categories',
+  'limit', 'export', and 'external_axes'."
+keywords:
+  - Documentation
+  - Model
+  - Chart
+  - Repositories
+  - Stars
+  - Forks
+  - Filtering
+  - Parameters
+  - Sortby
+  - Categories
+  - Limit
+  - Export
+  - External_axes
 ---
+
+import HeadTitle from '@site/src/components/General/HeadTitle.tsx';
+
+<HeadTitle title="alt.oss.top - Reference | OpenBB SDK Docs" />
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-
-# top
 
 <Tabs>
 <TabItem value="model" label="Model" default>
@@ -23,23 +42,21 @@ openbb.alt.oss.top(sortby: str, limit: int = 50, categories: str = "")
 
 ## Parameters
 
-| Name | Type | Description | Default | Optional |
-| ---- | ---- | ----------- | ------- | -------- |
-| sortby | str | Sort repos by {stars, forks} | None | False |
-| categories | str | Check for repo categories. If more than one separate with a comma: e.g., finance,investment. Default: None |  | True |
-| limit | int | Number of repos to search for | 50 | True |
-
+| Name       | Type | Description                                                                                                | Default | Optional |
+| ---------- | ---- | ---------------------------------------------------------------------------------------------------------- | ------- | -------- |
+| sortby     | str  | Sort repos by \{stars, forks\}                                                                             | None    | False    |
+| categories | str  | Check for repo categories. If more than one separate with a comma: e.g., finance,investment. Default: None |         | True     |
+| limit      | int  | Number of repos to search for                                                                              | 50      | True     |
 
 ---
 
 ## Returns
 
-| Type | Description |
-| ---- | ----------- |
+| Type         | Description          |
+| ------------ | -------------------- |
 | pd.DataFrame | Dataframe with repos |
+
 ---
-
-
 
 </TabItem>
 <TabItem value="view" label="Chart">
@@ -56,14 +73,13 @@ openbb.alt.oss.top_chart(sortby: str, categories: str = "", limit: int = 10, exp
 
 ## Parameters
 
-| Name | Type | Description | Default | Optional |
-| ---- | ---- | ----------- | ------- | -------- |
-| sortby | str | Sort repos by {stars, forks} | None | False |
-| categories | str | Check for repo categories. If more than one separate with a comma: e.g., finance,investment. Default: None |  | True |
-| limit | int | Number of repos to look at | 10 | True |
-| export | str | Export dataframe data to csv,json,xlsx file |  | True |
-| external_axes | Optional[List[plt.Axes]] | External axes (1 axis is expected in the list), by default None | None | True |
-
+| Name          | Type                     | Description                                                                                                | Default | Optional |
+| ------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------- | ------- | -------- |
+| sortby        | str                      | Sort repos by \{stars, forks\}                                                                             | None    | False    |
+| categories    | str                      | Check for repo categories. If more than one separate with a comma: e.g., finance,investment. Default: None |         | True     |
+| limit         | int                      | Number of repos to look at                                                                                 | 10      | True     |
+| export        | str                      | Export dataframe data to csv,json,xlsx file                                                                |         | True     |
+| external_axes | Optional[List[plt.Axes]] | External axes (1 axis is expected in the list), by default None                                            | None    | True     |
 
 ---
 
@@ -72,8 +88,6 @@ openbb.alt.oss.top_chart(sortby: str, categories: str = "", limit: int = 10, exp
 This function does not return anything
 
 ---
-
-
 
 </TabItem>
 </Tabs>

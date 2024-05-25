@@ -1,15 +1,15 @@
-import React, { useEffect } from "react";
-import clsx from "clsx";
-import useIsBrowser from "@docusaurus/useIsBrowser";
-import { translate } from "@docusaurus/Translate";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import SunIcon from "@site/src/components/Icons/Sun";
-import MoonIcon from "@site/src/components/Icons/Moon";
-import { useLocation } from "@docusaurus/router";
-import DiscordIcon from "@site/src/components/Icons/Discord";
-import TelegramIcon from "@site/src/components/Icons/Telegram";
 import Link from "@docusaurus/Link";
-import { useIFrameContext } from "../Root";
+import { translate } from "@docusaurus/Translate";
+import { useLocation } from "@docusaurus/router";
+import useIsBrowser from "@docusaurus/useIsBrowser";
+import * as PopoverPrimitive from "@radix-ui/react-popover";
+import DiscordIcon from "@site/src/components/Icons/Discord";
+import MoonIcon from "@site/src/components/Icons/Moon";
+import SunIcon from "@site/src/components/Icons/Sun";
+import TelegramIcon from "@site/src/components/Icons/Telegram";
+import clsx from "clsx";
+import React, { useEffect } from "react";
+import { useIFrameContext } from "../Root.tsx";
 function ColorModeToggle({ className, value, onChange }) {
   const { isIFrame } = useIFrameContext();
   const { pathname } = useLocation();
@@ -114,7 +114,10 @@ function ColorModeToggle({ className, value, onChange }) {
               "text-white": value !== "dark",
             })}
             type="button"
-            onClick={() => onChange("light")}
+            onClick={() => {
+              onChange("light");
+              window.location.reload();
+            }}
             disabled={!isBrowser}
             title={title}
             aria-label={title}
@@ -128,7 +131,10 @@ function ColorModeToggle({ className, value, onChange }) {
               "text-white": value === "dark",
             })}
             type="button"
-            onClick={() => onChange("dark")}
+            onClick={() => {
+              onChange("dark");
+              window.location.reload();
+            }}
             disabled={!isBrowser}
             title={title}
             aria-label={title}

@@ -1,59 +1,25 @@
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-
-[![Stargazers][stars-shield]][stars-url]
-[![Forks][forks-shield]][forks-url]
-[![Contributors][contributors-shield]][contributors-url]
-[![MIT License][license-shield]][license-url]
-
-[![Issues][issues-shield]][issues-url]
-[![Bugs Open][bugs-open-shield]][bugs-open-url]
-[![Bugs Closed][bugs-closed-shield]][bugs-closed-url]
-
-[![GitHub release](https://img.shields.io/github/release/OpenBB-finance/OpenBBTerminal.svg?maxAge=3600)](https://github.com/OpenBB-finance/OpenBBTerminal/releases)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/OpenBB-finance/OpenBBTerminal/main)](https://www.tickgit.com/browse?repo=github.com/OpenBB-finance/OpenBBTerminal&branch=main)
-
-![Discord Shield](https://discordapp.com/api/guilds/831165782750789672/widget.png?style=shield)
-[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/openbb_finance.svg?style=social&label=Follow%20%40openbb_finance)](https://twitter.com/openbb_finance)
-
-[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/OpenBB-finance/OpenBBTerminal)
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/OpenBB-finance/OpenBBTerminal)
-
-<!-- PROJECT LOGO -->
-
-| OpenBB is committed to build the future of investment research by focusing on an open source infrastructure accessible to everyone, everywhere. |
-|:--:|
-| [![openbb.jpg](/images/openbb_gradient.png)](https://openbb.co) |
-| Check our website at [openbb.co](https://openbb.co) |
-
+<br />
+<img src="https://github.com/OpenBB-finance/OpenBBTerminal/blob/develop/images/platform-light.svg?raw=true#gh-light-mode-only" alt="OpenBB Terminal logo" width="600">
+<img src="https://github.com/OpenBB-finance/OpenBBTerminal/blob/develop/images/platform-dark.svg?raw=true#gh-dark-mode-only" alt="OpenBB Terminal logo" width="600">
+<br />
 <br />
 
-<p align="center">
-  <h3 align="center">OpenBB Terminal 🚀</h3>
-  <h4 align="center">Documentation can be found at: https://openbb.co/docs </h4>
-  <p align="center">Click on the GIF below for a DEMO of the terminal.</p>
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/openbb_finance.svg?style=social&label=Follow%20%40openbb_finance)](https://twitter.com/openbb_finance)
+![Discord Shield](https://discordapp.com/api/guilds/831165782750789672/widget.png?style=shield)
+[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/OpenBB-finance/OpenBBTerminal)
+<a href="https://codespaces.new/OpenBB-finance/OpenBBTerminal">
+  <img src="https://github.com/codespaces/badge.svg" height="20" />
+</a>
+<a target="_blank" href="https://colab.research.google.com/github/OpenBB-finance/OpenBBTerminal/blob/develop/examples/googleColab.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+[![PyPI](https://img.shields.io/pypi/v/openbb?color=blue&label=PyPI%20Package)](https://pypi.org/project/openbb/)
 
-  <p align="center">
-     <a href="https://www.youtube.com/watch?v=fqGPK8OVHLk" rel="OpenBB Terminal Demo">
-        <img src="images/openbb_terminal_illustration.gif" alt="OpenBB Terminal Illustration" width="100%"/>
-     </a>
-  </p>
+The first financial Platform that is free and fully open source.
 
-  <p align="center">
-    <a href="https://docs.openbb.co/terminal/installation"><strong>≪  GETTING STARTED</strong></a>
-    &nbsp · &nbsp <a href="https://github.com/OpenBB-finance/OpenBBTerminal/tree/master/CONTRIBUTING.md"><strong>CONTRIBUTING</strong></a> &nbsp · &nbsp
-    <a href="https://docs.openbb.co/terminal">
-    <strong>SEE FEATURES »</strong></a>
-  </p>
-</p>
+Offers access to equity, options, crypto, forex, macro economy, fixed income, and more while also offering a broad range of extensions to enhance the user experience according to their needs.
+
+Sign up to the [OpenBB Hub](https://my.openbb.co/login) to get the most out of the OpenBB ecosystem.
 
 <!-- TABLE OF CONTENTS -->
 <details closed="closed">
@@ -71,20 +37,23 @@
 
 ## 1. Installation
 
-If you wish to install the OpenBB Terminal or the OpenBB SDK, please use one of the following options:
+The OpenBB Platform can be installed as a [PyPI package](https://pypi.org/project/openbb/) by running `pip install openbb`
 
-|**OpenBB Terminal**|**Usage**|
-|:-|:-|
-|[Windows Installer](https://docs.openbb.co/terminal/installation/windows)|Recommended way for Windows if you just want to use the OpenBB Terminal|
-|[MacOS Installer](https://docs.openbb.co/terminal/installation/macos)|Recommended way for MacOS if you just want to use the OpenBB Terminal|
-|[Source](https://docs.openbb.co/terminal/installation/source)|If you wish to contribute to the development of the OpenBB Terminal|
-|[Docker](https://docs.openbb.co/terminal/installation/docker)|An alternative way if you just want to use the OpenBB Terminal|
+or by cloning the repository directly with `git clone https://github.com/OpenBB-finance/OpenBBTerminal.git`.
 
-|**OpenBB SDK** &nbsp; &nbsp; &nbsp; &nbsp; |**Usage**|
-|:-|:-|
-|[PyPI](https://docs.openbb.co/terminal/installation/pypi)|If you wish to use the OpenBB SDK in Python or Jupyter Notebooks|
-|[Source](https://docs.openbb.co/terminal/installation/source)|If you wish to contribute to the development of the OpenBB Terminal|
-<!-- nbsp;| -->
+Please find more about the installation process in the [OpenBB Documentation](https://docs.openbb.co/platform/installation).
+
+### OpenBB Platform CLI installation
+
+The OpenBB Platform CLI is a command-line interface that allows you to access the OpenBB Platform directly from your terminal.
+
+It can be installed by running `pip install openbb-cli`
+
+or by cloning the repository directly with  `git clone https://github.com/OpenBB-finance/OpenBBTerminal.git`.
+
+Please find more about the installation process in the [OpenBB Documentation](https://docs.openbb.co/cli/installation).
+
+> The OpenBB Platform CLI offers an alternative to the former [OpenBB Terminal](https://github.com/OpenBB-finance/LegacyTerminal) as it has the same look and feel while offering the functionalities and extendability of the OpenBB Platform.
 
 ## 2. Contributing
 
@@ -92,7 +61,7 @@ There are three main ways of contributing to this project. (Hopefully you have s
 
 ### Become a Contributor
 
-* More information on our [CONTRIBUTING GUIDELINES](/CONTRIBUTING.md).
+* More information on our [Contributing Documentation](https://docs.openbb.co/platform/development/contributing).
 
 ### Create a GitHub ticket
 
@@ -108,7 +77,7 @@ We are most active on [our Discord](https://openbb.co/discord), but feel free to
 
 ## 3. License
 
-Distributed under the MIT License. See
+Distributed under the AGPLv3 License. See
 [LICENSE](https://github.com/OpenBB-finance/OpenBBTerminal/blob/main/LICENSE) for more information.
 
 ## 4. Disclaimer
