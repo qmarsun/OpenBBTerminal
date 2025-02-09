@@ -153,20 +153,6 @@ async def top_retail(
 
 
 @router.command(
-    model="UpcomingReleaseDays",
-    examples=[APIEx(parameters={"provider": "seeking_alpha"})],
-)
-async def upcoming_release_days(
-    cc: CommandContext,
-    provider_choices: ProviderChoices,
-    standard_params: StandardParams,
-    extra_params: ExtraParams,
-) -> OBBject:
-    """Get upcoming earnings release dates."""
-    return await OBBject.from_query(Query(**locals()))
-
-
-@router.command(
     model="DiscoveryFilings",
     examples=[
         APIEx(parameters={"provider": "fmp"}),
@@ -194,4 +180,21 @@ async def filings(
     filed annually and includes the company's financial statements, management discussion and analysis,
     and audited financial statements.
     """
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="LatestFinancialReports",
+    examples=[
+        APIEx(parameters={"provider": "sec"}),
+        APIEx(parameters={"provider": "sec", "date": "2024-09-30"}),
+    ],
+)
+async def latest_financial_reports(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get the newest quarterly, annual, and current reports for all companies."""
     return await OBBject.from_query(Query(**locals()))

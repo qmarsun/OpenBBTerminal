@@ -2,23 +2,20 @@
 
 # pylint: disable=unused-argument
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, Union
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.annotated_result import AnnotatedResult
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.economic_indicators import (
     EconomicIndicatorsData,
     EconomicIndicatorsQueryParams,
 )
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_econdb.utils import helpers
-from openbb_econdb.utils.main_indicators import get_main_indicators
-from pandas import DataFrame, concat
 from pydantic import Field, field_validator
-
-INDICATORS = list(helpers.INDICATORS_DESCRIPTIONS)
 
 
 class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
@@ -28,6 +25,12 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
         "symbol": {"multiple_items_allowed": True},
         "country": {"multiple_items_allowed": True},
     }
+
+    symbol: str = Field(
+        description=QUERY_DESCRIPTIONS.get("symbol", "")
+        + " The base symbol for the indicator (e.g. GDP, CPI, etc.)."
+        + " Use `available_indicators()` to get a list of available symbols.",
+    )
 
     transform: Union[None, Literal["toya", "tpop", "tusd", "tpgp"]] = Field(
         default=None,
@@ -61,6 +64,9 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
     @classmethod
     def validate_countries(cls, v):
         """Validate each country and convert to a two-letter ISO code."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils import helpers
+
         if v:
             country = v if isinstance(v, list) else v.split(",")
             for c in country.copy():
@@ -87,7 +93,7 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
                         helpers.COUNTRY_GROUPS[c.lower()]
                     )
             if len(country) == 0:
-                raise ValueError("No valid countries were supplied.")
+                raise OpenBBError("No valid countries were supplied.")
             return ",".join(country)
         return None
 
@@ -95,6 +101,10 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
     @classmethod
     def validate_symbols(cls, v):
         """Validate each symbol to check if it is a valid indicator."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils import helpers
+
+        INDICATORS = list(helpers.INDICATORS_DESCRIPTIONS)
         if not v:
             v = "main"
         symbols = v if isinstance(v, list) else v.split(",")
@@ -105,7 +115,7 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
                 continue
             if symbol.upper() == "MAIN":
                 if len(symbols) > 1:
-                    raise ValueError(
+                    raise OpenBBError(
                         "The 'main' indicator cannot be combined with other indicators."
                     )
                 return symbol
@@ -121,7 +131,7 @@ class EconDbEconomicIndicatorsQueryParams(EconomicIndicatorsQueryParams):
             else:
                 new_symbols.append(symbol)
         if not new_symbols:
-            raise ValueError(
+            raise OpenBBError(
                 "No valid indicators provided. Please choose from: "
                 + ",".join(INDICATORS)
             )
@@ -142,6 +152,9 @@ class EconDbEconomicIndicatorsFetcher(
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> EconDbEconomicIndicatorsQueryParams:
         """Transform the query parameters."""
+        # pylint: disable=import-outside-toplevel
+        from datetime import timedelta
+
         new_params = params.copy()
         if new_params.get("start_date") is None:
             new_params["start_date"] = (
@@ -155,7 +168,7 @@ class EconDbEconomicIndicatorsFetcher(
             and len(countries.split(",")) > 1
             and new_params.get("symbol", "").upper() == "MAIN"
         ):
-            raise ValueError(
+            raise OpenBBError(
                 "The 'main' indicator cannot be combined with multiple countries."
             )
         return EconDbEconomicIndicatorsQueryParams(**new_params)
@@ -167,8 +180,13 @@ class EconDbEconomicIndicatorsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the data."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils import helpers
+        from openbb_econdb.utils.main_indicators import get_main_indicators
+
         if query.symbol.upper() == "MAIN":
             country = query.country.upper() if query.country else "US"
+
             return await get_main_indicators(
                 country,
                 query.start_date.strftime("%Y-%m-%d"),  # type: ignore
@@ -177,6 +195,7 @@ class EconDbEconomicIndicatorsFetcher(
                 query.transform,
                 query.use_cache,
             )
+
         token = credentials.get("econdb_api_key", "")  # type: ignore
         # Attempt to create a temporary token if one is not supplied.
         if not token:
@@ -189,7 +208,7 @@ class EconDbEconomicIndicatorsFetcher(
         new_symbols: List = []
         # We need to join country, symbol, and transformation
         # for every combination of country and symbol.
-        for symbol in symbols:
+        for s in symbols:
             # We will assume that if the symbol has a '~' in it,
             # the user knows what they are doing. We don't want to
             # match this defined symbol with any supplied country, and we need to
@@ -198,9 +217,10 @@ class EconDbEconomicIndicatorsFetcher(
             # and return the symbol as 'level' if it is not.
             # We will also check if the symbol should have a country,
             # and if one was supplied.
+            symbol = s.upper()
             if "~" in symbol:
-                _symbol = symbol.split("~")[0].upper()
-                _transform = symbol.split("~")[1].upper()
+                _symbol = symbol.split("~")[0]
+                _transform = symbol.split("~")[1]
                 if (
                     helpers.HAS_COUNTRIES.get(_symbol) is True
                     and _symbol in helpers.SYMBOL_TO_INDICATOR.values()
@@ -209,14 +229,14 @@ class EconDbEconomicIndicatorsFetcher(
                     if len(symbols) > 1:
                         warn(message)
                         continue
-                    raise RuntimeError(message)
+                    raise OpenBBError(message)
                 if _transform and _transform not in helpers.QUERY_TRANSFORMS:
                     message = f"Invalid transformation, '{_transform}', for symbol: '{_symbol}'."
                     if len(symbols) > 1:
                         warn(message)
                         new_symbols.append(_symbol)
                     else:
-                        raise RuntimeError(message)
+                        raise OpenBBError(message)
                 elif not _transform:
                     new_symbols.append(symbol.replace("~", ""))
                 else:
@@ -263,7 +283,9 @@ class EconDbEconomicIndicatorsFetcher(
             ):
                 new_symbols.append(symbol)
         if not new_symbols:
-            symbol_message = helpers.INDICATOR_COUNTRIES.get(query.symbol, "None")
+            symbol_message = helpers.INDICATOR_COUNTRIES.get(
+                query.symbol.upper(), "None"
+            )
             error_message = (
                 "No valid combination of indicator symbols and countries were supplied."
                 + f"\nValid countries for '{query.symbol}' are: {symbol_message}"
@@ -271,7 +293,7 @@ class EconDbEconomicIndicatorsFetcher(
                 + " Please add the two-letter country code or use the country parameter."
                 + "\nIf already included, add '~' to the end of the symbol."
             )
-            raise ValueError(error_message)
+            raise OpenBBError(error_message)
         url = base_url + f"%5B{','.join(new_symbols)}%5D&format=json&token={token}"
         if query.start_date:
             url += f"&from={query.start_date}"
@@ -281,7 +303,7 @@ class EconDbEconomicIndicatorsFetcher(
         # Instead of chunking we request the user reduce the number of indicators and countries.
         # This might be able to nudge higher, but it is a safe limit for all operating systems.
         if len(url) > 2000:
-            raise ValueError(
+            raise OpenBBError(
                 "The request has generated a url that is too long."
                 + " Please reduce the number of symbols or countries and try again."
             )
@@ -332,6 +354,10 @@ class EconDbEconomicIndicatorsFetcher(
         **kwargs: Any,
     ) -> AnnotatedResult[List[EconDbEconomicIndicatorsData]]:
         """Transform the data."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils import helpers
+        from pandas import DataFrame, concat
+
         if query.symbol.upper() == "MAIN":
             return AnnotatedResult(
                 result=[

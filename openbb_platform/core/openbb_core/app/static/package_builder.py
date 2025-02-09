@@ -5,13 +5,13 @@ import builtins
 import inspect
 import re
 import shutil
-import sys
 from dataclasses import Field as DCField
 from functools import partial
 from inspect import Parameter, _empty, isclass, signature
 from json import dumps, load
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -29,14 +29,7 @@ from typing import (
     get_type_hints,
 )
 
-import numpy as np
-import pandas as pd
 from importlib_metadata import entry_points
-from pydantic.fields import FieldInfo
-from pydantic_core import PydanticUndefined
-from starlette.routing import BaseRoute
-from typing_extensions import Annotated, _AnnotatedAlias
-
 from openbb_core.app.extension_loader import ExtensionLoader, OpenBBGroups
 from openbb_core.app.model.example import Example
 from openbb_core.app.model.field import OpenBBField
@@ -48,7 +41,16 @@ from openbb_core.app.static.utils.console import Console
 from openbb_core.app.static.utils.linters import Linters
 from openbb_core.app.version import CORE_VERSION, VERSION
 from openbb_core.env import Env
-from openbb_core.provider.abstract.data import Data
+from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
+from starlette.routing import BaseRoute
+from typing_extensions import Annotated, _AnnotatedAlias
+
+if TYPE_CHECKING:
+    # pylint: disable=import-outside-toplevel
+    from numpy import ndarray  # noqa
+    from pandas import DataFrame, Series  # noqa
+    from openbb_core.provider.abstract.data import Data  # noqa
 
 try:
     from openbb_charting import Charting  # type: ignore
@@ -61,12 +63,12 @@ DataProcessingSupportedTypes = TypeVar(
     "DataProcessingSupportedTypes",
     list,
     dict,
-    pd.DataFrame,
-    List[pd.DataFrame],
-    pd.Series,
-    List[pd.Series],
-    np.ndarray,
-    Data,
+    "DataFrame",
+    List["DataFrame"],
+    "Series",
+    List["Series"],
+    "ndarray",
+    "Data",
 )
 
 TAB = "    "
@@ -299,7 +301,13 @@ class ImportDefinition:
         """Filter the hint type list."""
         new_hint_type_list = []
         for hint_type in hint_type_list:
-            if hint_type != _empty and hint_type.__module__ != "builtins":
+            if hint_type != _empty and (
+                (
+                    hasattr(hint_type, "__module__")
+                    and hint_type.__module__ != "builtins"
+                )
+                or (isinstance(hint_type, str))
+            ):
                 new_hint_type_list.append(hint_type)
 
         new_hint_type_list = list(set(new_hint_type_list))
@@ -307,21 +315,32 @@ class ImportDefinition:
         return new_hint_type_list
 
     @classmethod
-    def get_function_hint_type_list(cls, func: Callable) -> List[Type]:
+    def get_function_hint_type_list(cls, route) -> List[Type]:
         """Get the hint type list from the function."""
-        sig = signature(func)
-        parameter_map = sig.parameters
-        return_type = sig.return_annotation
 
-        hint_type_list = []
+        no_validate = route.openapi_extra.get("no_validate")
+
+        func = route.endpoint
+        sig = signature(func)
+        if no_validate is True:
+            route.response_model = None
+
+        parameter_map = sig.parameters
+        return_type = sig.return_annotation if not no_validate else route.response_model
+
+        hint_type_list: list = []
 
         for parameter in parameter_map.values():
             hint_type_list.append(parameter.annotation)
 
         if return_type:
-            if not issubclass(return_type, OBBject):
+            if not no_validate and not issubclass(return_type, OBBject):
                 raise ValueError("Return type must be an OBBject.")
-            hint_type = get_args(get_type_hints(return_type)["results"])[0]
+            hint_type = (
+                get_args(get_type_hints(return_type)["results"])[0]
+                if "OBBject" in return_type.__class__.__name__
+                else return_type
+            )
             hint_type_list.append(hint_type)
 
         hint_type_list = cls.filter_hint_type_list(hint_type_list)
@@ -342,7 +361,7 @@ class ImportDefinition:
             if route:
                 if route.deprecated:
                     hint_type_list.append(type(route.summary.metadata))
-                function_hint_type_list = cls.get_function_hint_type_list(func=route.endpoint)  # type: ignore
+                function_hint_type_list = cls.get_function_hint_type_list(route=route)  # type: ignore
                 hint_type_list.extend(function_hint_type_list)
 
         hint_type_list = list(set(hint_type_list))
@@ -359,32 +378,29 @@ class ImportDefinition:
         # ruff --fix the resulting code to remove unused imports.
         # TODO: Find a better way to handle this. This is a temporary solution.
         code += "\nimport openbb_core.provider"
+        code += "\nfrom openbb_core.provider.abstract.data import Data"
         code += "\nimport pandas"
+        code += "\nfrom pandas import DataFrame, Series"
         code += "\nimport numpy"
+        code += "\nfrom numpy import ndarray"
         code += "\nimport datetime"
         code += "\nfrom datetime import date"
         code += "\nimport pydantic"
         code += "\nfrom pydantic import BaseModel"
         code += "\nfrom inspect import Parameter"
         code += "\nimport typing"
-        code += "\nfrom typing import List, Dict, Union, Optional, Literal, Any"
+        code += "\nfrom typing import TYPE_CHECKING, ForwardRef, List, Dict, Union, Optional, Literal, Any"
         code += "\nfrom annotated_types import Ge, Le, Gt, Lt"
         code += "\nfrom warnings import warn, simplefilter"
-        if sys.version_info < (3, 9):
-            code += "\nimport typing_extensions"
-        else:
-            code += "\nfrom typing_extensions import Annotated, deprecated"
-        code += "\nfrom openbb_core.app.utils import df_to_basemodel"
+        code += "\nfrom typing_extensions import Annotated, deprecated"
         code += "\nfrom openbb_core.app.static.utils.decorators import exception_handler, validate\n"
         code += "\nfrom openbb_core.app.static.utils.filters import filter_inputs\n"
-        code += "\nfrom openbb_core.provider.abstract.data import Data"
         code += "\nfrom openbb_core.app.deprecation import OpenBBDeprecationWarning\n"
         code += "\nfrom openbb_core.app.model.field import OpenBBField"
-        if path.startswith("/quantitative"):
-            code += "\nfrom openbb_quantitative.models import "
-            code += "(CAPMModel,NormalityModel,OmegaModel,SummaryModel,UnitRootModel)"
-
-        module_list = [hint_type.__module__ for hint_type in hint_type_list]
+        module_list = [
+            hint_type.__module__ if hasattr(hint_type, "__module__") else hint_type
+            for hint_type in hint_type_list
+        ]
         module_list = list(set(module_list))
         module_list.sort()
 
@@ -540,7 +556,7 @@ class MethodDefinition:
     def is_data_processing_function(path: str) -> bool:
         """Check if the function is a data processing function."""
         methods = PathHandler.build_route_map()[path].methods  # type: ignore
-        return "POST" in methods
+        return "POST" in methods or "PUT" in methods or "PATCH" in methods
 
     @staticmethod
     def is_deprecated_function(path: str) -> bool:
@@ -574,6 +590,7 @@ class MethodDefinition:
         path: str, parameter_map: Dict[str, Parameter]
     ) -> OrderedDict[str, Parameter]:
         """Format the params."""
+
         parameter_map.pop("cc", None)
         # we need to add the chart parameter here bc of the docstring generation
         if CHARTING_INSTALLED and path.replace("/", "_")[1:] in Charting.functions():
@@ -599,8 +616,7 @@ class MethodDefinition:
                 fields = param.annotation.__args__[0].__dataclass_fields__
                 field = fields["provider"]
                 type_ = getattr(field, "type")
-                args = getattr(type_, "__args__")
-                first = args[0] if args else None
+                default_priority = getattr(type_, "__args__")
                 formatted["provider"] = Parameter(
                     name="provider",
                     kind=Parameter.POSITIONAL_OR_KEYWORD,
@@ -608,10 +624,9 @@ class MethodDefinition:
                         Optional[MethodDefinition.get_type(field)],
                         OpenBBField(
                             description=(
-                                "The provider to use for the query, by default None.\n"
-                                f"    If None, the provider specified in defaults is selected or '{first}' if there is\n"
-                                "    no default."
-                                ""
+                                "The provider to use, by default None. "
+                                "If None, the priority list configured in the settings is used. "
+                                f"Default priority: {', '.join(default_priority)}."
                             ),
                         ),
                     ],
@@ -637,7 +652,7 @@ class MethodDefinition:
             else:
                 new_type = MethodDefinition.get_expanded_type(name)
                 if hasattr(new_type, "__constraints__"):
-                    types = new_type.__constraints__ + (param.annotation,)
+                    types = new_type.__constraints__ + (param.annotation,)  # type: ignore
                     updated_type = Union[types]  # type: ignore
                 else:
                     updated_type = (
@@ -708,7 +723,10 @@ class MethodDefinition:
         func_params = func_params.replace(
             "openbb_core.provider.abstract.data.Data", "Data"
         )
-
+        func_params = func_params.replace("ForwardRef('Data')", "Data")
+        func_params = func_params.replace("ForwardRef('DataFrame')", "DataFrame")
+        func_params = func_params.replace("ForwardRef('Series')", "Series")
+        func_params = func_params.replace("ForwardRef('ndarray')", "ndarray")
         return func_params
 
     @staticmethod
@@ -716,12 +734,14 @@ class MethodDefinition:
         """Build the function returns."""
         if return_type == _empty:
             func_returns = "None"
-        elif return_type.__module__ == "builtins":
-            func_returns = return_type.__name__
-        else:
+        elif isinstance(return_type, str):
+            func_returns = f"ForwardRef('{return_type}')"
+        elif isclass(return_type) and issubclass(return_type, OBBject):
             func_returns = "OBBject"
+        else:
+            func_returns = return_type.__name__ if return_type else Any  # type: ignore
 
-        return func_returns
+        return func_returns  # type: ignore
 
     @staticmethod
     def build_command_method_signature(
@@ -732,6 +752,7 @@ class MethodDefinition:
         model_name: Optional[str] = None,
     ) -> str:
         """Build the command method signature."""
+
         MethodDefinition.add_field_custom_annotations(
             od=formatted_params, model_name=model_name
         )  # this modified `od` in place
@@ -740,7 +761,9 @@ class MethodDefinition:
 
         args = (
             "(config=dict(arbitrary_types_allowed=True))"
-            if "pandas.DataFrame" in func_params
+            if "DataFrame" in func_params
+            or "Series" in func_params
+            or "ndarray" in func_params
             else ""
         )
 
@@ -828,10 +851,11 @@ class MethodDefinition:
             elif name == "provider_choices":
                 field = param.annotation.__args__[0].__dataclass_fields__["provider"]
                 available = field.type.__args__
+                cmd = path.strip("/").replace("/", ".")
                 code += "                provider_choices={\n"
                 code += '                    "provider": self._get_provider(\n'
                 code += "                        provider,\n"
-                code += f'                        "{path}",\n'
+                code += f'                        "{cmd}",\n'
                 code += f"                        {available},\n"
                 code += "                    )\n"
                 code += "                },\n"
@@ -897,7 +921,6 @@ class MethodDefinition:
         parameter_map = dict(sig.parameters)
 
         formatted_params = cls.format_params(path=path, parameter_map=parameter_map)
-
         code = cls.build_command_method_signature(
             func_name=func_name,
             formatted_params=formatted_params,
@@ -1044,7 +1067,7 @@ class DocstringGenerator:
         return ""
 
     @classmethod
-    def generate_model_docstring(
+    def generate_model_docstring(  # pylint: disable=too-many-positional-arguments
         cls,
         model_name: str,
         summary: str,
@@ -1059,7 +1082,15 @@ class DocstringGenerator:
         def format_type(type_: str, char_limit: Optional[int] = None) -> str:
             """Format type in docstrings."""
             type_str = str(type_)
-            type_str = type_str.replace("NoneType", "None")
+            type_str = (
+                type_str.replace("<class '", "")
+                .replace("'>", "")
+                .replace("typing.", "")
+                .replace("pydantic.types.", "")
+                .replace("NoneType", "None")
+                .replace("datetime.date", "date")
+                .replace("datetime.datetime", "datetime")
+            )
             if char_limit:
                 type_str = type_str[:char_limit] + (
                     "..." if len(str(type_str)) > char_limit else ""
@@ -1086,7 +1117,7 @@ class DocstringGenerator:
             )
             metadata = getattr(annotation, "__metadata__", [])
             description = getattr(metadata[0], "description", "") if metadata else ""
-            return type_, description
+            return type_, description  # type: ignore
 
         # Description summary
         if "description" in sections:
@@ -1099,7 +1130,7 @@ class DocstringGenerator:
             # Explicit parameters
             for param_name, param in explicit_params.items():
                 type_, description = get_param_info(param)
-                type_str = format_type(str(type_), char_limit=79)
+                type_str = format_type(str(type_), char_limit=86)
                 docstring += f"{create_indent(2)}{param_name} : {type_str}\n"
                 docstring += f"{create_indent(3)}{format_description(description)}\n"
 
@@ -1141,7 +1172,7 @@ class DocstringGenerator:
         return docstring
 
     @classmethod
-    def generate(
+    def generate(  # pylint: disable=too-many-positional-arguments
         cls,
         path: str,
         func: Callable,
@@ -1241,7 +1272,7 @@ class DocstringGenerator:
             ):
                 items.append(name.title())
             func = partial(cls._get_generic_types, items=items)
-            set().union(*map(func, type_.__args__), items)
+            set().union(*map(func, type_.__args__), items)  # type: ignore
         return items
 
     @staticmethod
@@ -1352,6 +1383,7 @@ class ReferenceGenerator:
 
     # pylint: disable=protected-access
     pi = DocstringGenerator.provider_interface
+    route_map = PathHandler.build_route_map()
 
     @classmethod
     def _get_endpoint_examples(
@@ -1397,7 +1429,7 @@ class ReferenceGenerator:
         )
 
     @classmethod
-    def _get_provider_parameter_info(cls, model: str) -> Dict[str, str]:
+    def _get_provider_parameter_info(cls, model: str) -> Dict[str, Any]:
         """Get the name, type, description, default value and optionality information for the provider parameter.
 
         Parameters
@@ -1407,7 +1439,7 @@ class ReferenceGenerator:
 
         Returns
         -------
-        Dict[str, str]
+        Dict[str, Any]
             Dictionary of the provider parameter information
         """
         pi_model_provider = cls.pi.model_providers[model]
@@ -1417,18 +1449,18 @@ class ReferenceGenerator:
         field_type = DocstringGenerator.get_field_type(
             provider_params_field.type, False, "website"
         )
-        default = provider_params_field.type.__args__[0]
+        default_priority = provider_params_field.type.__args__
         description = (
-            "The provider to use for the query, by default None. "
-            "If None, the provider specified in defaults is selected "
-            f"or '{default}' if there is no default."
+            "The provider to use, by default None. "
+            "If None, the priority list configured in the settings is used. "
+            f"Default priority: {', '.join(default_priority)}."
         )
 
         provider_parameter_info = {
             "name": name,
             "type": field_type,
             "description": description,
-            "default": default,
+            "default": None,
             "optional": True,
         }
 
@@ -1474,29 +1506,26 @@ class ReferenceGenerator:
                 field_type, is_required, "website"
             )
 
-            if params_type == "QueryParams" and field in expanded_types:
-                expanded_type = DocstringGenerator.get_field_type(
-                    expanded_types[field], is_required, "website"
-                )
-                field_type = f"Union[{field_type}, {expanded_type}]"
-
             cleaned_description = (
                 str(field_info.description)
-                .strip().replace("\n", " ").replace("  ", " ").replace('"', "'")
+                .strip().replace('"', "'")
             )  # fmt: skip
 
             extra = field_info.json_schema_extra or {}
+            choices = extra.get("choices")
 
             # Add information for the providers supporting multiple symbols
             if params_type == "QueryParams" and extra:
-
-                providers = []
+                providers: List = []
                 for p, v in extra.items():  # type: ignore[union-attr]
                     if isinstance(v, dict) and v.get("multiple_items_allowed"):
                         providers.append(p)
+                        choices = v.get("choices")  # type: ignore
                     elif isinstance(v, list) and "multiple_items_allowed" in v:
                         # For backwards compatibility, before this was a list
                         providers.append(p)
+                    elif isinstance(v, dict) and "choices" in v:
+                        choices = v.get("choices")
 
                 if providers:
                     multiple_items = ", ".join(providers)
@@ -1506,6 +1535,11 @@ class ReferenceGenerator:
                     # Manually setting to List[<field_type>] for multiple items
                     # Should be removed if TYPE_EXPANSION is updated to include this
                     field_type = f"Union[{field_type}, List[{field_type}]]"
+            elif field in expanded_types:
+                expanded_type = DocstringGenerator.get_field_type(
+                    expanded_types[field], is_required, "website"
+                )
+                field_type = f"Union[{field_type}, {expanded_type}]"
 
             default_value = "" if field_info.default is PydanticUndefined else field_info.default  # fmt: skip
 
@@ -1516,7 +1550,7 @@ class ReferenceGenerator:
                     "description": cleaned_description,
                     "default": default_value,
                     "optional": not is_required,
-                    "choices": extra.get("choices"),
+                    "choices": choices,
                 }
             )
 
@@ -1657,7 +1691,11 @@ class ReferenceGenerator:
             content_inside_brackets = re.search(
                 r"OBBject\[\s*((?:[^\[\]]|\[[^\[\]]*\])*)\s*\]", return_type
             )
-            return_type = content_inside_brackets.group(1)  # type: ignore
+            return_type = (  # type: ignore
+                content_inside_brackets.group(1)
+                if content_inside_brackets is not None
+                else return_type
+            )
 
             returns_list = [
                 {
@@ -1686,6 +1724,8 @@ class ReferenceGenerator:
         reference: Dict[str, Dict] = {}
 
         for path, route in route_map.items():
+            # Initialize the provider parameter fields as an empty dictionary
+            provider_parameter_fields = {"type": ""}
             # Initialize the reference fields as empty dictionaries
             reference[path] = {field: {} for field in cls.REFERENCE_FIELDS}
             # Route method is used to distinguish between GET and POST methods
@@ -1710,16 +1750,14 @@ class ReferenceGenerator:
                 route_func,
                 examples,  # type: ignore
             )
+            validate_output = not cls.route_map[path].openapi_extra.get("no_validate")
+            model_map = cls.pi.map.get(standard_model, {})
+
             # Add data for the endpoints having a standard model
-            if route_method == {"GET"}:
+            if route_method == {"GET"} and model_map:
                 reference[path]["description"] = getattr(
                     route, "description", "No description available."
                 )
-
-                # TODO: The reference is not getting populated when a command does not use a standard model
-                # Access model map from the ProviderInterface
-                model_map = cls.pi.map.get(standard_model, {})
-
                 for provider in model_map:
                     if provider == "openbb":
                         # openbb provider is always present hence its the standard field
@@ -1732,49 +1770,86 @@ class ReferenceGenerator:
                         provider_parameter_fields = cls._get_provider_parameter_info(
                             standard_model
                         )
-                        reference[path]["parameters"]["standard"].append(
-                            provider_parameter_fields
-                        )
 
                         # Add endpoint data fields for standard provider
                         reference[path]["data"]["standard"] = (
                             cls._get_provider_field_params(standard_model, "Data")
                         )
                         continue
+
                     # Adds provider specific parameter fields to the reference
                     reference[path]["parameters"][provider] = (
                         cls._get_provider_field_params(
                             standard_model, "QueryParams", provider
                         )
                     )
+
                     # Adds provider specific data fields to the reference
                     reference[path]["data"][provider] = cls._get_provider_field_params(
                         standard_model, "Data", provider
                     )
+
+                    # Remove choices from 'standard' if choices for a parameter exist
+                    # for both standard and provider, and are the same
+                    standard = [
+                        {d["name"]: d["choices"]}
+                        for d in reference[path]["parameters"]["standard"]
+                        if d.get("choices")
+                    ]
+                    standard = standard[0] if standard else []  # type: ignore
+                    _provider = [
+                        {d["name"]: d["choices"]}
+                        for d in reference[path]["parameters"][provider]
+                        if d.get("choices")
+                    ]
+                    _provider = _provider[0] if _provider else []  # type: ignore
+                    if standard and _provider and standard == _provider:
+                        for i, d in enumerate(
+                            reference[path]["parameters"]["standard"]
+                        ):
+                            if d.get("name") in standard:
+                                reference[path]["parameters"]["standard"][i][
+                                    "choices"
+                                ] = None
+
                 # Add endpoint returns data
                 # Currently only OBBject object is returned
-                providers = provider_parameter_fields["type"]
-                reference[path]["returns"]["OBBject"] = cls._get_obbject_returns_fields(
-                    standard_model, providers
-                )
+                if validate_output is False:
+                    reference[path]["returns"]["Any"] = {
+                        "description": "Unvalidated results object.",
+                    }
+                else:
+                    providers = provider_parameter_fields["type"]
+                    reference[path]["returns"]["OBBject"] = (
+                        cls._get_obbject_returns_fields(standard_model, providers)
+                    )
             # Add data for the endpoints without a standard model (data processing endpoints)
-            elif route_method == {"POST"}:
-                # POST method router `description` attribute is unreliable as it may or
+            elif (
+                route_method == {"POST"}
+                or "PUT" in str(route_method)
+                or "PATCH" in str(route_method)
+            ) or (route_method == {"GET"} and not model_map):
+                # Non-model method's router `description` attribute is unreliable as it may or
                 # may not contain the "Parameters" and "Returns" sections. Hence, the
                 # endpoint function docstring is used instead.
                 docstring = getattr(route_func, "__doc__", "")
                 description = docstring.split("Parameters")[0].strip()
                 # Remove extra spaces in between the string
                 reference[path]["description"] = re.sub(" +", " ", description)
-                # Add endpoint parameters fields for POST methods
+                # Add endpoint parameters fields for non-model methods
                 reference[path]["parameters"]["standard"] = (
                     cls._get_post_method_parameters_info(docstring)
                 )
                 # Add endpoint returns data
-                # Currently only OBBject object is returned
-                reference[path]["returns"]["OBBject"] = (
-                    cls._get_post_method_returns_info(docstring)
-                )
+                # If the endpoint is not validated, the return type is set to Any
+                if validate_output is False:
+                    reference[path]["returns"]["Any"] = {
+                        "description": "Unvalidated results object.",
+                    }
+                else:
+                    reference[path]["returns"]["OBBject"] = (
+                        cls._get_post_method_returns_info(docstring)
+                    )
 
         return reference
 

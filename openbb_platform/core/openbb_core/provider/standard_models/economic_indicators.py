@@ -3,23 +3,18 @@
 from datetime import date as dateType
 from typing import Optional, Union
 
-from pydantic import Field
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field
 
 
 class EconomicIndicatorsQueryParams(QueryParams):
     """Economic Indicators Query."""
 
-    symbol: str = Field(
-        description=QUERY_DESCRIPTIONS.get("symbol", "")
-        + " The base symbol for the indicator (e.g. GDP, CPI, etc.).",
-    )
     country: Optional[str] = Field(
         default=None,
         description=QUERY_DESCRIPTIONS.get("country", "")

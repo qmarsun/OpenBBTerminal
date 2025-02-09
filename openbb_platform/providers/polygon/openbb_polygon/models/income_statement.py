@@ -1,7 +1,8 @@
 """Polygon Income Statement Model."""
 
 # pylint: disable=unused-argument
-from datetime import date
+
+from datetime import date as dateType
 from typing import Any, Dict, List, Literal, Optional
 
 from openbb_core.provider.abstract.fetcher import Fetcher
@@ -9,8 +10,7 @@ from openbb_core.provider.standard_models.income_statement import (
     IncomeStatementData,
     IncomeStatementQueryParams,
 )
-from openbb_core.provider.utils.helpers import get_querystring
-from openbb_polygon.utils.helpers import get_data_many
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from pydantic import Field, model_validator
 
 
@@ -21,42 +21,50 @@ class PolygonIncomeStatementQueryParams(IncomeStatementQueryParams):
     """
 
     __alias_dict__ = {"symbol": "ticker", "period": "timeframe"}
+    __json_schema_extra__ = {
+        "period": {
+            "choices": ["annual", "quarter", "ttm"],
+        }
+    }
 
-    period: Literal["annual", "quarter", "ttm"] = Field(default="annual")
-    filing_date: Optional[date] = Field(
+    period: Literal["annual", "quarter", "ttm"] = Field(
+        default="annual",
+        description=QUERY_DESCRIPTIONS.get("period", ""),
+    )
+    filing_date: Optional[dateType] = Field(
         default=None, description="Filing date of the financial statement."
     )
-    filing_date_lt: Optional[date] = Field(
+    filing_date_lt: Optional[dateType] = Field(
         default=None, description="Filing date less than the given date."
     )
-    filing_date_lte: Optional[date] = Field(
+    filing_date_lte: Optional[dateType] = Field(
         default=None,
         description="Filing date less than or equal to the given date.",
     )
-    filing_date_gt: Optional[date] = Field(
+    filing_date_gt: Optional[dateType] = Field(
         default=None,
         description="Filing date greater than the given date.",
     )
-    filing_date_gte: Optional[date] = Field(
+    filing_date_gte: Optional[dateType] = Field(
         default=None,
         description="Filing date greater than or equal to the given date.",
     )
-    period_of_report_date: Optional[date] = Field(
+    period_of_report_date: Optional[dateType] = Field(
         default=None, description="Period of report date of the financial statement."
     )
-    period_of_report_date_lt: Optional[date] = Field(
+    period_of_report_date_lt: Optional[dateType] = Field(
         default=None,
         description="Period of report date less than the given date.",
     )
-    period_of_report_date_lte: Optional[date] = Field(
+    period_of_report_date_lte: Optional[dateType] = Field(
         default=None,
         description="Period of report date less than or equal to the given date.",
     )
-    period_of_report_date_gt: Optional[date] = Field(
+    period_of_report_date_gt: Optional[dateType] = Field(
         default=None,
         description="Period of report date greater than the given date.",
     )
-    period_of_report_date_gte: Optional[date] = Field(
+    period_of_report_date_gte: Optional[dateType] = Field(
         default=None,
         description="Period of report date greater than or equal to the given date.",
     )
@@ -98,13 +106,13 @@ class PolygonIncomeStatementData(IncomeStatementData):
         "non_interest_income": "noninterest_income",
         "non_interest_expense": "noninterest_expense",
         "income_after_tax": "income_loss_from_continuing_operations_after_tax",
-        "income_from_discontinued_operations_net_of_tax_on_disposal": "income_loss_from_discontinued_operations_net_of_tax_gain_loss_on_disposal",  # type: ignore # noqa: E501
+        "income_from_discontinued_operations_net_of_tax_on_disposal": "income_loss_from_discontinued_operations_net_of_tax_gain_loss_on_disposal",  # noqa  # pylint: disable=line-too-long
         "income_from_discontinued_operations_net_of_tax": "income_loss_from_discontinued_operations_net_of_tax",
         "net_income_attributable_to_noncontrolling_interest": "net_income_loss_attributable_to_noncontrolling_interest",
         "net_income_attributable_to_parent": "net_income_loss_attributable_to_parent",
         "net_income_attributable_to_common_shareholders": "net_income_loss_available_to_common_stockholders_basic",
         "participating_securities_earnings": "participating_securities_distributed_and_undistributed_earnings_loss_basic",
-        "undistributed_earnings_allocated_to_participating_securities": "undistributed_earnings_loss_allocated_to_participating_securities_basic",  # type: ignore # noqa: E501
+        "undistributed_earnings_allocated_to_participating_securities": "undistributed_earnings_loss_allocated_to_participating_securities_basic",  # noqa  # pylint: disable=line-too-long
         "weighted_average_diluted_shares_outstanding": "diluted_average_shares",
         "weighted_average_basic_shares_outstanding": "basic_average_shares",
         "basic_earnings_per_share": "eps",
@@ -246,7 +254,7 @@ class PolygonIncomeStatementData(IncomeStatementData):
 
     @model_validator(mode="before")
     @classmethod
-    def replace_zero(cls, values):  # pylint: disable=no-self-argument
+    def replace_zero(cls, values):
         """Check for zero values and replace with None."""
         return (
             {k: None if v == 0 else v for k, v in values.items()}
@@ -261,7 +269,7 @@ class PolygonIncomeStatementFetcher(
         List[PolygonIncomeStatementData],
     ]
 ):
-    """Transform the query, extract and transform the data from the Polygon endpoints."""
+    """Polygon Income Statement Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> PolygonIncomeStatementQueryParams:
@@ -275,6 +283,10 @@ class PolygonIncomeStatementFetcher(
         **kwargs: Any,
     ) -> Dict:
         """Return the raw data from the Intrinio endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import get_querystring
+        from openbb_polygon.utils.helpers import get_data_many
+
         api_key = credentials.get("polygon_api_key") if credentials else ""
 
         base_url = "https://api.polygon.io/vX/reference/financials"
@@ -290,7 +302,7 @@ class PolygonIncomeStatementFetcher(
 
         request_url = f"{base_url}?{query_string}&apiKey={api_key}"
 
-        return await get_data_many(request_url, "results", **kwargs)
+        return await get_data_many(request_url, "results", **kwargs)  # type: ignore
 
     @staticmethod
     def transform_data(
@@ -299,7 +311,7 @@ class PolygonIncomeStatementFetcher(
         **kwargs: Any,
     ) -> List[PolygonIncomeStatementData]:
         """Return the transformed data."""
-        transformed_data = []
+        transformed_data: List[PolygonIncomeStatementData] = []
 
         for item in data:
             sub_data = {

@@ -20,7 +20,7 @@ class Servers(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    url: str = "http://localhost:8000"
+    url: str = ""
     description: str = "Local OpenBB development server"
 
 
@@ -36,10 +36,8 @@ class APISettings(BaseModel):
     contact_name: str = "OpenBB Team"
     contact_url: str = "https://openbb.co"
     contact_email: str = "hello@openbb.co"
-    license_name: str = "MIT"
-    license_url: str = (
-        "https://github.com/OpenBB-finance/OpenBBTerminal/blob/develop/LICENSE"
-    )
+    license_name: str = "AGPLv3"
+    license_url: str = "https://github.com/OpenBB-finance/OpenBB/blob/develop/LICENSE"
     servers: List[Servers] = Field(default_factory=lambda: [Servers()])
     cors: Cors = Field(default_factory=Cors)
     custom_headers: Optional[Dict[str, str]] = Field(

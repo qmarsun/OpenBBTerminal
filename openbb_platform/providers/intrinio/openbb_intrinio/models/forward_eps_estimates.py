@@ -7,12 +7,13 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, Union
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.forward_eps_estimates import (
     ForwardEpsEstimatesData,
     ForwardEpsEstimatesQueryParams,
 )
-from openbb_core.provider.utils.errors import EmptyDataError
+from openbb_core.provider.utils.errors import EmptyDataError, UnauthorizedError
 from openbb_core.provider.utils.helpers import (
     amake_request,
     get_querystring,
@@ -34,7 +35,7 @@ class IntrinioForwardEpsEstimatesQueryParams(ForwardEpsEstimatesQueryParams):
         description="The future fiscal year to retrieve estimates for."
         + " When no symbol and year is supplied the current calendar year is used.",
     )
-    fiscal_period: Union[Literal["fy", "q1", "q2", "q3", "q4"], None] = Field(
+    fiscal_period: Optional[Literal["fy", "q1", "q2", "q3", "q4"]] = Field(
         default=None,
         description="The future fiscal period to retrieve estimates for.",
     )
@@ -43,7 +44,7 @@ class IntrinioForwardEpsEstimatesQueryParams(ForwardEpsEstimatesQueryParams):
         description="The future calendar year to retrieve estimates for."
         + " When no symbol and year is supplied the current calendar year is used.",
     )
-    calendar_period: Union[Literal["q1", "q2", "q3", "q4"], None] = Field(
+    calendar_period: Optional[Literal["q1", "q2", "q3", "q4"]] = Field(
         default=None,
         description="The future calendar period to retrieve estimates for.",
     )
@@ -164,9 +165,15 @@ class IntrinioForwardEpsEstimatesFetcher(
         async def fetch_callback(response, session):
             """Use callback for pagination."""
             data = await response.json()
-            messages = data.get("messages", None)
-            if messages:
-                raise RuntimeError(str(messages))
+            error = data.get("error", None)
+            if error:
+                message = data.get("message", "")
+                if "api key" in message.lower():
+                    raise UnauthorizedError(
+                        f"Unauthorized Intrinio request -> {message}"
+                    )
+                raise OpenBBError(f"Error: {error} -> {message}")
+
             if data.get("estimates") and len(data.get("estimates")) > 0:  # type: ignore
                 results.extend(data.get("estimates"))  # type: ignore
                 while data.get("next_page"):  # type: ignore

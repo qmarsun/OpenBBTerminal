@@ -1,15 +1,14 @@
 """TMX ETF Holdings fetcher."""
 
 # pylint: disable=unused-argument
+
 from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_holdings import (
     EtfHoldingsData,
     EtfHoldingsQueryParams,
 )
-from openbb_tmx.utils.helpers import get_all_etfs
 from pydantic import Field, field_validator
 
 
@@ -29,6 +28,10 @@ class TmxEtfHoldingsQueryParams(EtfHoldingsQueryParams):
 class TmxEtfHoldingsData(EtfHoldingsData):
     """TMX ETF Holdings Data."""
 
+    __alias_dict__ = {
+        "shares": "number_of_shares",
+    }
+
     symbol: Optional[str] = Field(
         description="The ticker symbol of the asset.", default=None
     )
@@ -40,7 +43,6 @@ class TmxEtfHoldingsData(EtfHoldingsData):
     )
     shares: Optional[Union[int, str]] = Field(
         description="The value of the assets under management.",
-        alias="number_of_shares",
         default=None,
     )
     market_value: Optional[Union[float, str]] = Field(
@@ -81,7 +83,7 @@ class TmxEtfHoldingsFetcher(
         List[TmxEtfHoldingsData],
     ]
 ):
-    """Transform the query, extract and transform the data from the TMX endpoints."""
+    """TMX ETF Holdings Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> TmxEtfHoldingsQueryParams:
@@ -98,14 +100,18 @@ class TmxEtfHoldingsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.utils.helpers import get_all_etfs
+        from pandas import DataFrame
+
         query.symbol = query.symbol.upper()
         results = []
-        etf = pd.DataFrame()
-        etfs = pd.DataFrame(await get_all_etfs(use_cache=query.use_cache))
+        etf = DataFrame()
+        etfs = DataFrame(await get_all_etfs(use_cache=query.use_cache))
         etf = etfs[etfs["symbol"] == query.symbol]
 
         if len(etf) == 1:
-            top_holdings = pd.DataFrame(etf["holdings_top10"].iloc[0])
+            top_holdings = DataFrame(etf["holdings_top10"].iloc[0])
             top_holdings = top_holdings.dropna(axis=1, how="all")
             _columns = {
                 "numberofshares": "number_of_shares",

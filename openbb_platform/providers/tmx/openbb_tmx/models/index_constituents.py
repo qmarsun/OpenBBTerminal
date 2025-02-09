@@ -1,15 +1,16 @@
 """TMX Index Constituents Model."""
 
 # pylint: disable=unused-argument
+
 from typing import Any, Dict, List, Optional
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.index_constituents import (
     IndexConstituentsData,
     IndexConstituentsQueryParams,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_tmx.utils.helpers import get_data_from_url, tmx_indices_backend
 from pydantic import Field, field_validator
 
 
@@ -63,12 +64,15 @@ class TmxIndexConstituentsFetcher(
         **kwargs: Any,
     ) -> Dict:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.utils.helpers import get_data_from_url, get_indices_backend
+
         url = "https://tmxinfoservices.com/files/indices/sptsx-indices.json"
 
         data = await get_data_from_url(
             url,
             use_cache=query.use_cache,
-            backend=tmx_indices_backend,
+            backend=get_indices_backend(),
         )
 
         return data
@@ -83,12 +87,12 @@ class TmxIndexConstituentsFetcher(
         if data == {}:
             raise EmptyDataError
         if query.symbol not in data.get("indices"):  # type: ignore
-            raise ValueError(f"Index {query.symbol} was not found.  Check the symbol.")
+            raise OpenBBError(f"Index {query.symbol} was not found. Check the symbol.")
         index_data = data["indices"][query.symbol]
         if (
             index_data.get("nb_constituents") == 0
             or index_data.get("constituents") is None
         ):
-            raise ValueError(f"No constituents found for index, {query.symbol}")
+            raise OpenBBError(f"No constituents found for index, {query.symbol}")
         results = index_data["constituents"]
         return [TmxIndexConstituentsData.model_validate(d) for d in results]

@@ -10,6 +10,7 @@ from openbb_core.provider.standard_models.balance_sheet import (
     BalanceSheetData,
     BalanceSheetQueryParams,
 )
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.helpers import ClientResponse, amake_requests
 from openbb_intrinio.utils.helpers import get_data_one
 from pydantic import Field, field_validator, model_validator
@@ -22,7 +23,16 @@ class IntrinioBalanceSheetQueryParams(BalanceSheetQueryParams):
     Source: https://docs.intrinio.com/documentation/web_api/get_fundamental_standardized_financials_v2
     """
 
-    period: Literal["annual", "quarter"] = Field(default="annual")
+    __json_schema_extra__ = {
+        "period": {
+            "choices": ["annual", "quarter"],
+        }
+    }
+
+    period: Literal["annual", "quarter"] = Field(
+        default="annual",
+        description=QUERY_DESCRIPTIONS.get("period", ""),
+    )
     fiscal_year: Optional[int] = Field(
         default=None,
         description="The specific fiscal year.  Reports do not go beyond 2008.",
@@ -458,7 +468,7 @@ class IntrinioBalanceSheetFetcher(
             for p in fiscal_periods
         ]
 
-        return await amake_requests(urls, callback, **kwargs)
+        return await amake_requests(urls, callback, **kwargs)  # type: ignore
 
     @staticmethod
     def transform_data(
@@ -466,6 +476,7 @@ class IntrinioBalanceSheetFetcher(
     ) -> List[IntrinioBalanceSheetData]:
         """Return the transformed data."""
         transformed_data: List[IntrinioBalanceSheetData] = []
+        period = "FY" if query.period == "annual" else "QTR"
         units = []
         for item in data:
             sub_dict: Dict[str, Any] = {}
@@ -487,7 +498,7 @@ class IntrinioBalanceSheetFetcher(
             sub_dict["reported_currency"] = list(set(units))[0]
 
             # Intrinio does not return Q4 data but FY data instead
-            if query.period == "QTR" and item["fiscal_period"] == "FY":
+            if period == "QTR" and item["fiscal_period"] == "FY":
                 sub_dict["fiscal_period"] = "Q4"
 
             transformed_data.append(IntrinioBalanceSheetData(**sub_dict))

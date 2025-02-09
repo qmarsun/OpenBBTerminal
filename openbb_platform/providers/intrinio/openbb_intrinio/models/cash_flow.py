@@ -2,19 +2,19 @@
 
 # pylint: disable=unused-argument
 
-import warnings
 from typing import Any, Dict, List, Literal, Optional
+from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.cash_flow import (
     CashFlowStatementData,
     CashFlowStatementQueryParams,
 )
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.helpers import ClientResponse, amake_requests
 from openbb_intrinio.utils.helpers import get_data_one
 from pydantic import Field, field_validator, model_validator
-
-_warn = warnings.warn
 
 
 class IntrinioCashFlowStatementQueryParams(CashFlowStatementQueryParams):
@@ -24,7 +24,16 @@ class IntrinioCashFlowStatementQueryParams(CashFlowStatementQueryParams):
     Source: https://docs.intrinio.com/documentation/web_api/get_fundamental_standardized_financials_v2
     """
 
-    period: Literal["annual", "quarter", "ttm", "ytd"] = Field(default="annual")
+    __json_schema_extra__ = {
+        "period": {
+            "choices": ["annual", "quarter", "ttm", "ytd"],
+        }
+    }
+
+    period: Literal["annual", "quarter", "ttm", "ytd"] = Field(
+        default="annual",
+        description=QUERY_DESCRIPTIONS.get("period", ""),
+    )
     fiscal_year: Optional[int] = Field(
         default=None,
         description="The specific fiscal year.  Reports do not go beyond 2008.",
@@ -250,13 +259,14 @@ class IntrinioCashFlowStatementFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Intrinio endpoint."""
-
         api_key = credentials.get("intrinio_api_key") if credentials else ""
         statement_code = "cash_flow_statement"
         if query.period in ["quarter", "annual"]:
             period_type = "FY" if query.period == "annual" else "QTR"
-        if query.period in ["ttm", "ytd"]:
+        elif query.period in ["ttm", "ytd"]:
             period_type = query.period.upper()
+        else:
+            raise OpenBBError(f"Period '{query.period}' not supported.")
 
         base_url = "https://api-v2.intrinio.com"
         fundamentals_url = (
@@ -265,7 +275,7 @@ class IntrinioCashFlowStatementFetcher(
         )
         if query.fiscal_year is not None:
             if query.fiscal_year < 2008:
-                _warn("Financials data is only available from 2008 and later.")
+                warn("Financials data is only available from 2008 and later.")
                 query.fiscal_year = 2008
             fundamentals_url = fundamentals_url + f"&fiscal_year={query.fiscal_year}"
         fundamentals_url = fundamentals_url + f"&api_key={api_key}"

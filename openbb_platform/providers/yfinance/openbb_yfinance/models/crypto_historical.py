@@ -1,13 +1,10 @@
 """Yahoo Finance Crypto Historical Price Model."""
 
 # pylint: disable=unused-argument
-# ruff: noqa: SIM105
-
 
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from dateutil.relativedelta import relativedelta
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.crypto_historical import (
     CryptoHistoricalData,
@@ -15,7 +12,6 @@ from openbb_core.provider.standard_models.crypto_historical import (
 )
 from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_yfinance.utils.helpers import yf_download
 from openbb_yfinance.utils.references import INTERVALS_DICT
 from pydantic import Field
 
@@ -26,7 +22,26 @@ class YFinanceCryptoHistoricalQueryParams(CryptoHistoricalQueryParams):
     Source: https://finance.yahoo.com/crypto/
     """
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "interval": {
+            "choices": [
+                "1m",
+                "2m",
+                "5m",
+                "15m",
+                "30m",
+                "60m",
+                "90m",
+                "1h",
+                "1d",
+                "5d",
+                "1W",
+                "1M",
+                "1Q",
+            ]
+        },
+    }
 
     interval: Literal[
         "1m",
@@ -63,6 +78,9 @@ class YFinanceCryptoHistoricalFetcher(
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> YFinanceCryptoHistoricalQueryParams:
         """Transform the query."""
+        # pylint: disable=import-outside-toplevel
+        from dateutil.relativedelta import relativedelta
+
         transformed_params = params
         now = datetime.now().date()
 
@@ -81,14 +99,15 @@ class YFinanceCryptoHistoricalFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Yahoo Finance endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_yfinance.utils.helpers import yf_download
 
         tickers = query.symbol.split(",")
         new_tickers = []
         for ticker in tickers:
-            if "-" not in ticker:
-                new_ticker = ticker[:-3] + "-" + ticker[-3:]
-            if "-" in ticker:
-                new_ticker = ticker
+            new_ticker = (
+                ticker[:-3] + "-" + ticker[-3:] if "-" not in ticker else ticker
+            )
             new_tickers.append(new_ticker)
 
         symbols = ",".join(new_tickers)

@@ -48,7 +48,7 @@ class ROUTER_news(Container):
                 Literal["benzinga", "fmp", "intrinio", "polygon", "tiingo", "yfinance"]
             ],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'benzinga' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: benzinga, fmp, intrinio, polygon, tiingo, yfinance."
             ),
         ] = None,
         **kwargs
@@ -59,16 +59,14 @@ class ROUTER_news(Container):
         ----------
         symbol : Union[str, None, List[Optional[str]]]
             Symbol to get data for. Multiple comma separated items allowed for provider(s): benzinga, fmp, intrinio, polygon, tiingo, yfinance.
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         limit : Optional[Annotated[int, Ge(ge=0)]]
             The number of data entries to return.
-        provider : Optional[Literal['benzinga', 'fmp', 'intrinio', 'polygon', 'tiing...
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'benzinga' if there is
-            no default.
+        provider : Optional[Literal['benzinga', 'fmp', 'intrinio', 'polygon', 'tiingo', 'yfinance']]
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: benzinga, fmp, intrinio, polygon, tiingo, yfinance.
         date : Optional[datetime.date]
             A specific date to get data for. (provider: benzinga)
         display : Literal['headline', 'abstract', 'full']
@@ -79,7 +77,7 @@ class ROUTER_news(Container):
             Number of seconds since the news was published. (provider: benzinga)
         sort : Literal['id', 'created', 'updated']
             Key to sort the news by. (provider: benzinga)
-        order : Optional[Literal['asc', 'desc']]
+        order : Literal['asc', 'desc']
             Order to sort the news by. (provider: benzinga);
             Sort order of the articles. (provider: polygon)
         isin : Optional[str]
@@ -98,7 +96,7 @@ class ROUTER_news(Container):
             Page number of the results. Use in combination with limit. (provider: fmp)
         source : Optional[Union[Literal['yahoo', 'moody', 'moody_us_news', 'moody_us_press_releases'], str]]
             The source of the news article. (provider: intrinio);
-            A comma-separated list of the domains requested. (provider: tiingo)
+            A comma-separated list of the domains requested. Multiple comma separated items allowed. (provider: tiingo)
         sentiment : Optional[Literal['positive', 'neutral', 'negative']]
             Return news only from this source. (provider: intrinio)
         language : Optional[str]
@@ -216,7 +214,7 @@ class ROUTER_news(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/news/company",
+                        "news.company",
                         (
                             "benzinga",
                             "fmp",
@@ -236,13 +234,37 @@ class ROUTER_news(Container):
                 extra_params=kwargs,
                 info={
                     "symbol": {
-                        "benzinga": {"multiple_items_allowed": True},
-                        "fmp": {"multiple_items_allowed": True},
-                        "intrinio": {"multiple_items_allowed": True},
-                        "polygon": {"multiple_items_allowed": True},
-                        "tiingo": {"multiple_items_allowed": True},
-                        "yfinance": {"multiple_items_allowed": True},
-                    }
+                        "benzinga": {"multiple_items_allowed": True, "choices": None},
+                        "fmp": {"multiple_items_allowed": True, "choices": None},
+                        "intrinio": {"multiple_items_allowed": True, "choices": None},
+                        "polygon": {"multiple_items_allowed": True, "choices": None},
+                        "tiingo": {"multiple_items_allowed": True, "choices": None},
+                        "yfinance": {"multiple_items_allowed": True, "choices": None},
+                    },
+                    "order": {
+                        "polygon": {
+                            "multiple_items_allowed": False,
+                            "choices": ["asc", "desc"],
+                        }
+                    },
+                    "source": {
+                        "intrinio": {
+                            "multiple_items_allowed": False,
+                            "choices": [
+                                "yahoo",
+                                "moody",
+                                "moody_us_news",
+                                "moody_us_press_releases",
+                            ],
+                        },
+                        "tiingo": {"multiple_items_allowed": True, "choices": None},
+                    },
+                    "sentiment": {
+                        "intrinio": {
+                            "multiple_items_allowed": False,
+                            "choices": ["positive", "neutral", "negative"],
+                        }
+                    },
                 },
             )
         )
@@ -268,7 +290,7 @@ class ROUTER_news(Container):
         provider: Annotated[
             Optional[Literal["benzinga", "fmp", "intrinio", "tiingo"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'benzinga' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: benzinga, fmp, intrinio, tiingo."
             ),
         ] = None,
         **kwargs
@@ -279,14 +301,12 @@ class ROUTER_news(Container):
         ----------
         limit : int
             The number of data entries to return. The number of articles to return.
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['benzinga', 'fmp', 'intrinio', 'tiingo']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'benzinga' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: benzinga, fmp, intrinio, tiingo.
         date : Optional[datetime.date]
             A specific date to get data for. (provider: benzinga)
         display : Literal['headline', 'abstract', 'full']
@@ -313,7 +333,7 @@ class ROUTER_news(Container):
             Content types of the news to retrieve. (provider: benzinga)
         source : Optional[Union[Literal['yahoo', 'moody', 'moody_us_news', 'moody_us_press_releases'], str]]
             The source of the news article. (provider: intrinio);
-            A comma-separated list of the domains requested. (provider: tiingo)
+            A comma-separated list of the domains requested. Multiple comma separated items allowed. (provider: tiingo)
         sentiment : Optional[Literal['positive', 'neutral', 'negative']]
             Return news only from this source. (provider: intrinio)
         language : Optional[str]
@@ -427,7 +447,7 @@ class ROUTER_news(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/news/world",
+                        "news.world",
                         ("benzinga", "fmp", "intrinio", "tiingo"),
                     )
                 },
@@ -437,5 +457,10 @@ class ROUTER_news(Container):
                     "end_date": end_date,
                 },
                 extra_params=kwargs,
+                info={
+                    "source": {
+                        "tiingo": {"multiple_items_allowed": True, "choices": None}
+                    }
+                },
             )
         )

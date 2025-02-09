@@ -1,19 +1,26 @@
 """FMP ETF Search Model."""
 
+# pylint: disable=unused-argument
+
 from typing import Any, Dict, List, Literal, Optional
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_search import (
     EtfSearchData,
     EtfSearchQueryParams,
 )
-from openbb_fmp.utils.helpers import create_url, get_data_many
 from pydantic import Field
 
 
 class FMPEtfSearchQueryParams(EtfSearchQueryParams):
     """FMP ETF Search Query."""
+
+    __json_schema_extra__ = {
+        "exchange": {
+            "multiple_items_allowed": False,
+            "choices": ["AMEX", "NYSE", "NASDAQ", "ETF", "TSX", "EURONEXT"],
+        }
+    }
 
     exchange: Optional[Literal["AMEX", "NYSE", "NASDAQ", "ETF", "TSX", "EURONEXT"]] = (
         Field(
@@ -32,10 +39,15 @@ class FMPEtfSearchData(EtfSearchData):
 
     __alias_dict__ = {
         "name": "companyName",
+        "market_cap": "marketCap",
+        "last_annual_dividend": "lastAnnualDividend",
+        "exchange": "exchangeShortName",
+        "exchange_name": "exchange",
+        "actively_trading": "isActivelyTrading",
     }
 
     market_cap: Optional[float] = Field(
-        description="The market cap of the ETF.", alias="marketCap", default=None
+        description="The market cap of the ETF.", default=None
     )
     sector: Optional[str] = Field(description="The sector of the ETF.", default=None)
     industry: Optional[str] = Field(
@@ -47,7 +59,6 @@ class FMPEtfSearchData(EtfSearchData):
     )
     last_annual_dividend: Optional[float] = Field(
         description="The last annual dividend paid.",
-        alias="lastAnnualDividend",
         default=None,
     )
     volume: Optional[float] = Field(
@@ -55,12 +66,10 @@ class FMPEtfSearchData(EtfSearchData):
     )
     exchange: Optional[str] = Field(
         description="The exchange code the ETF trades on.",
-        alias="exchangeShortName",
         default=None,
     )
     exchange_name: Optional[str] = Field(
         description="The full name of the exchange the ETF trades on.",
-        alias="exchange",
         default=None,
     )
     country: Optional[str] = Field(
@@ -68,7 +77,6 @@ class FMPEtfSearchData(EtfSearchData):
     )
     actively_trading: Optional[Literal[True, False]] = Field(
         description="Whether the ETF is actively trading.",
-        alias="isActivelyTrading",
         default=None,
     )
 
@@ -79,7 +87,7 @@ class FMPEtfSearchFetcher(
         List[FMPEtfSearchData],
     ]
 ):
-    """Transform the query, extract and transform the data from the FMP endpoints."""
+    """FMP ETF Search Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> FMPEtfSearchQueryParams:
@@ -93,6 +101,9 @@ class FMPEtfSearchFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the FMP endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_fmp.utils.helpers import create_url, get_data_many
+
         api_key = credentials.get("fmp_api_key") if credentials else ""
 
         url = create_url(
@@ -110,7 +121,10 @@ class FMPEtfSearchFetcher(
         query: FMPEtfSearchQueryParams, data: List[Dict], **kwargs: Any
     ) -> List[FMPEtfSearchData]:
         """Return the transformed data."""
-        etfs = pd.DataFrame(data)
+        # pylint: disable=import-outside-toplevel
+        from pandas import DataFrame
+
+        etfs = DataFrame(data)
         etfs.drop(columns="isEtf", inplace=True)
 
         if query.is_active:

@@ -41,9 +41,11 @@ from openbb_fmp.models.executive_compensation import FMPExecutiveCompensationFet
 from openbb_fmp.models.financial_ratios import FMPFinancialRatiosFetcher
 from openbb_fmp.models.forward_ebitda_estimates import FMPForwardEbitdaEstimatesFetcher
 from openbb_fmp.models.forward_eps_estimates import FMPForwardEpsEstimatesFetcher
+from openbb_fmp.models.government_trades import FMPGovernmentTradesFetcher
 from openbb_fmp.models.historical_dividends import FMPHistoricalDividendsFetcher
 from openbb_fmp.models.historical_employees import FMPHistoricalEmployeesFetcher
 from openbb_fmp.models.historical_eps import FMPHistoricalEpsFetcher
+from openbb_fmp.models.historical_market_cap import FmpHistoricalMarketCapFetcher
 from openbb_fmp.models.historical_splits import FMPHistoricalSplitsFetcher
 from openbb_fmp.models.income_statement import FMPIncomeStatementFetcher
 from openbb_fmp.models.income_statement_growth import FMPIncomeStatementGrowthFetcher
@@ -114,6 +116,7 @@ stock market information (news, currencies, and stock prices).""",
         "HistoricalDividends": FMPHistoricalDividendsFetcher,
         "HistoricalEmployees": FMPHistoricalEmployeesFetcher,
         "HistoricalEps": FMPHistoricalEpsFetcher,
+        "HistoricalMarketCap": FmpHistoricalMarketCapFetcher,
         "HistoricalSplits": FMPHistoricalSplitsFetcher,
         "IncomeStatement": FMPIncomeStatementFetcher,
         "IncomeStatementGrowth": FMPIncomeStatementGrowthFetcher,
@@ -123,7 +126,6 @@ stock market information (news, currencies, and stock prices).""",
         "InstitutionalOwnership": FMPInstitutionalOwnershipFetcher,
         "KeyExecutives": FMPKeyExecutivesFetcher,
         "KeyMetrics": FMPKeyMetricsFetcher,
-        "MarketIndices": FMPIndexHistoricalFetcher,
         "MarketSnapshots": FMPMarketSnapshotsFetcher,
         "PricePerformance": FMPPricePerformanceFetcher,
         "PriceTarget": FMPPriceTargetFetcher,
@@ -136,8 +138,9 @@ stock market information (news, currencies, and stock prices).""",
         "WorldNews": FMPWorldNewsFetcher,
         "EtfHistorical": FMPEquityHistoricalFetcher,
         "YieldCurve": FMPYieldCurveFetcher,
+        "GovernmentTrades": FMPGovernmentTradesFetcher,
     },
     repr_name="Financial Modeling Prep (FMP)",
-    v3_credentials=["API_KEY_FINANCIALMODELINGPREP"],
+    deprecated_credentials={"API_KEY_FINANCIALMODELINGPREP": "fmp_api_key"},
     instructions='Go to: https://site.financialmodelingprep.com/developer/docs\n\n![FinancialModelingPrep](https://user-images.githubusercontent.com/46355364/207821920-64553d05-d461-4984-b0fe-be0368c71186.png)\n\nClick on, "Get my API KEY here", and sign up for a free account.\n\n![FinancialModelingPrep](https://user-images.githubusercontent.com/46355364/207822184-a723092e-ef42-4f87-8c55-db150f09741b.png)\n\nWith an account created, sign in and navigate to the Dashboard, which shows the assigned token. by pressing the "Dashboard" button which will show the API key.\n\n![FinancialModelingPrep](https://user-images.githubusercontent.com/46355364/207823170-dd8191db-e125-44e5-b4f3-2df0e115c91d.png)',  # noqa: E501  pylint: disable=line-too-long
 )

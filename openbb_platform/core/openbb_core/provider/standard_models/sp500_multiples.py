@@ -1,9 +1,7 @@
 """SP500 Multiples Standard Model."""
 
 from datetime import date as dateType
-from typing import Literal, Optional
-
-from pydantic import Field
+from typing import Literal, Optional, Union
 
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
@@ -11,8 +9,9 @@ from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field
 
-SERIES_NAMES = Literal[
+SERIES_NAME = Literal[
     "shiller_pe_month",
     "shiller_pe_year",
     "pe_year",
@@ -55,7 +54,7 @@ SERIES_NAMES = Literal[
 class SP500MultiplesQueryParams(QueryParams):
     """SP500 Multiples Query."""
 
-    series_name: SERIES_NAMES = Field(
+    series_name: Union[SERIES_NAME, str] = Field(
         description="The name of the series. Defaults to 'pe_month'.",
         default="pe_month",
     )
@@ -71,3 +70,9 @@ class SP500MultiplesData(Data):
     """SP500 Multiples Data."""
 
     date: dateType = Field(description=DATA_DESCRIPTIONS.get("date", ""))
+    name: str = Field(
+        description="Name of the series.",
+    )
+    value: Union[int, float] = Field(
+        description="Value of the series.",
+    )

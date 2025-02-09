@@ -6,18 +6,16 @@ from datetime import (
     date as dateType,
     datetime,
 )
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.economic_calendar import (
     EconomicCalendarData,
     EconomicCalendarQueryParams,
 )
-from openbb_core.provider.utils.helpers import ClientResponse, amake_request, check_item
-from openbb_tradingeconomics.utils import url_generator
 from openbb_tradingeconomics.utils.countries import COUNTRIES
-from pandas import to_datetime
 from pydantic import Field, field_validator, model_validator
 
 IMPORTANCE_CHOICES = ["low", "medium", "high"]
@@ -66,34 +64,47 @@ class TEEconomicCalendarQueryParams(EconomicCalendarQueryParams):
     """
 
     __json_schema_extra__ = {
-        "country": {"multiple_items_allowed": True},
-        "calendar_id": {"multiple_items_allowed": True},
+        "country": {
+            "multiple_items_allowed": True,
+            "choices": sorted(COUNTRIES),
+        },
+        "calendar_id": {
+            "multiple_items_allowed": True,
+        },
+        "importance": {
+            "multiple_items_allowed": False,
+            "choices": IMPORTANCE_CHOICES,
+        },
+        "group": {
+            "multiple_items_allowed": False,
+            "choices": GROUPS_CHOICES,
+        },
     }
     country: Optional[str] = Field(
         default=None,
         description="Country of the event.",
-        json_schema_extra={"choices": sorted(COUNTRIES)},  # type: ignore[dict-item]
     )
     importance: Optional[IMPORTANCE] = Field(
         default=None,
         description="Importance of the event.",
-        json_schema_extra={"choices": IMPORTANCE_CHOICES},  # type: ignore[dict-item]
     )
     group: Optional[GROUPS] = Field(
         default=None,
         description="Grouping of events.",
-        json_schema_extra={"choices": GROUPS_CHOICES},  # type: ignore[dict-item]
     )
-    calendar_id: Optional[Union[int, str]] = Field(
+    calendar_id: Union[None, int, str] = Field(
         default=None, description="Get events by TradingEconomics Calendar ID."
     )
     _number_of_countries: int = 0
 
     @field_validator("country", mode="before", check_fields=False)
     @classmethod
-    def validate_country(cls, c: str):  # pylint: disable=E0213
+    def validate_country(cls, c):
         """Validate country."""
-        result = []
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import check_item
+
+        result: list = []
         values = c.replace(" ", "_").split(",")
         for v in values:
             check_item(v.lower(), COUNTRIES)
@@ -181,13 +192,19 @@ class TEEconomicCalendarData(EconomicCalendarData):
     @classmethod
     def validate_datetime(cls, v: str) -> datetime:
         """Validate the datetime values."""
+        # pylint: disable=import-outside-toplevel
+        from pandas import to_datetime
+
         dt = to_datetime(v, utc=True)
         return dt.replace(microsecond=0)
 
     @field_validator("reference_date", mode="before", check_fields=False)
     @classmethod
-    def validate_date(cls, v: str) -> dateType:
+    def validate_date(cls, v):
         """Validate the date."""
+        # pylint: disable=import-outside-toplevel
+        from pandas import to_datetime
+
         return to_datetime(v, utc=True).date() if v else None
 
     @model_validator(mode="before")
@@ -207,47 +224,47 @@ class TEEconomicCalendarData(EconomicCalendarData):
 class TEEconomicCalendarFetcher(
     Fetcher[
         TEEconomicCalendarQueryParams,
-        List[TEEconomicCalendarData],
+        list[TEEconomicCalendarData],
     ]
 ):
     """Transform the query, extract and transform the data from the Trading Economics endpoints."""
 
     @staticmethod
-    def transform_query(params: Dict[str, Any]) -> TEEconomicCalendarQueryParams:
+    def transform_query(params: dict[str, Any]) -> TEEconomicCalendarQueryParams:
         """Transform the query params."""
         return TEEconomicCalendarQueryParams(**params)
 
     @staticmethod
     async def aextract_data(
         query: TEEconomicCalendarQueryParams,
-        credentials: Optional[Dict[str, str]],
+        credentials: Optional[dict[str, str]],
         **kwargs: Any,
-    ) -> Union[dict, List[dict]]:
+    ) -> Union[dict, list[dict]]:
         """Return the raw data from the TE endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import amake_request
+        from openbb_tradingeconomics.utils import url_generator
+        from openbb_tradingeconomics.utils.helpers import response_callback
+
         api_key = credentials.get("tradingeconomics_api_key") if credentials else ""
+
         if query.group is not None:
             query.group = query.group.replace("_", " ")  # type: ignore
+
         url = url_generator.generate_url(query)
+
         if not url:
-            raise RuntimeError(
+            raise OpenBBError(
                 "No url generated. Check combination of input parameters."
             )
+
         url = f"{url}{api_key}"
 
-        async def callback(response: ClientResponse, _: Any) -> Union[dict, List[dict]]:
-            """Return the response."""
-            if response.status != 200:
-                raise RuntimeError(
-                    f"Error in TE request: \n{await response.text()}"
-                    f"\nInfo -> TE API tend to fail if the number of countries is above {TE_COUNTRY_LIMIT}."
-                )
-            return await response.json()
-
-        return await amake_request(url, response_callback=callback, **kwargs)
+        return await amake_request(url, response_callback=response_callback, **kwargs)
 
     @staticmethod
     def transform_data(
-        query: TEEconomicCalendarQueryParams, data: List[Dict], **kwargs: Any
-    ) -> List[TEEconomicCalendarData]:
+        query: TEEconomicCalendarQueryParams, data: list[dict], **kwargs: Any
+    ) -> list[TEEconomicCalendarData]:
         """Return the transformed data."""
         return [TEEconomicCalendarData.model_validate(d) for d in data]

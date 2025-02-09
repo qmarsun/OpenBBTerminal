@@ -158,11 +158,9 @@ def test_etf_search(params, headers):
                 "adjustment": "splits_and_dividends",
                 "provider": "yfinance",
                 "symbol": "SPY",
-                "start_date": "2023-06-01",
-                "end_date": "2023-06-03",
+                "start_date": None,
+                "end_date": None,
                 "interval": "1h",
-                "adjusted": True,
-                "prepost": False,
             }
         ),
         (
@@ -175,8 +173,6 @@ def test_etf_search(params, headers):
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
                 "interval": "1d",
-                "adjusted": False,
-                "prepost": False,
             }
         ),
         (

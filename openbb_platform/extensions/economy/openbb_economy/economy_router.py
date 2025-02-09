@@ -1,5 +1,6 @@
 """Economy Router."""
 
+from openbb_core.app.deprecation import OpenBBDeprecationWarning
 from openbb_core.app.model.command_context import CommandContext
 from openbb_core.app.model.example import APIEx
 from openbb_core.app.model.obbject import OBBject
@@ -12,9 +13,11 @@ from openbb_core.app.query import Query
 from openbb_core.app.router import Router
 
 from openbb_economy.gdp.gdp_router import router as gdp_router
+from openbb_economy.survey.survey_router import router as survey_router
 
 router = Router(prefix="", description="Economic data.")
 router.include_router(gdp_router)
+router.include_router(survey_router)
 
 # pylint: disable=unused-argument
 
@@ -54,11 +57,12 @@ async def calendar(
     examples=[
         APIEx(parameters={"country": "japan,china,turkey", "provider": "fred"}),
         APIEx(
-            description="Use the `units` parameter to define the reference period for the change in values.",
+            description="Use the `transform` parameter to define the reference period for the change in values."
+            + " Default is YoY.",
             parameters={
                 "country": "united_states,united_kingdom",
-                "units": "growth_previous",
-                "provider": "fred",
+                "transform": "period",
+                "provider": "oecd",
             },
         ),
     ],
@@ -153,6 +157,33 @@ async def fred_series(
 
 
 @router.command(
+    model="FredReleaseTable",
+    examples=[
+        APIEx(
+            description="Get the top-level elements of a release by not supplying an element ID.",
+            parameters={"release_id": "50", "provider": "fred"},
+        ),
+        APIEx(
+            description="Drill down on a specific section of the release.",
+            parameters={"release_id": "50", "element_id": "4880", "provider": "fred"},
+        ),
+        APIEx(
+            description="Drill down on a specific table of the release.",
+            parameters={"release_id": "50", "element_id": "4881", "provider": "fred"},
+        ),
+    ],
+)
+async def fred_release_table(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get economic release data by ID and/or element from FRED."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
     model="MoneyMeasures",
     examples=[
         APIEx(parameters={"provider": "federal_reserve"}),
@@ -177,14 +208,14 @@ async def money_measures(
     examples=[
         APIEx(parameters={"provider": "oecd"}),
         APIEx(
-            parameters={"country": "all", "frequency": "quarterly", "provider": "oecd"}
+            parameters={"country": "all", "frequency": "quarter", "provider": "oecd"}
         ),
         APIEx(
             description="Demographics for the statistics are selected with the `age` parameter.",
             parameters={
                 "country": "all",
-                "frequency": "quarterly",
-                "age": "25-54",
+                "frequency": "quarter",
+                "age": "total",
                 "provider": "oecd",
             },
         ),
@@ -201,10 +232,10 @@ async def unemployment(
 
 
 @router.command(
-    model="CLI",
+    model="CompositeLeadingIndicator",
     examples=[
         APIEx(parameters={"provider": "oecd"}),
-        APIEx(parameters={"country": "all", "provider": "oecd"}),
+        APIEx(parameters={"country": "all", "provider": "oecd", "growth_rate": True}),
     ],
 )
 async def composite_leading_indicator(
@@ -213,7 +244,7 @@ async def composite_leading_indicator(
     standard_params: StandardParams,
     extra_params: ExtraParams,
 ) -> OBBject:
-    """Use the composite leading indicator (CLI).
+    """Get the composite leading indicator (CLI).
 
     It is designed to provide early signals of turning points
     in business cycles showing fluctuation of the economic activity around its long term potential level.
@@ -225,6 +256,12 @@ async def composite_leading_indicator(
 
 @router.command(
     model="STIR",
+    deprecated=True,
+    deprecation=OpenBBDeprecationWarning(
+        message="This endpoint will be removed in a future version. Use, `/economy/interest_rates`, instead.",
+        since=(4, 3),
+        expected_removal=(4, 5),
+    ),
     examples=[
         APIEx(parameters={"provider": "oecd"}),
         APIEx(
@@ -252,6 +289,12 @@ async def short_term_interest_rate(
 
 @router.command(
     model="LTIR",
+    deprecated=True,
+    deprecation=OpenBBDeprecationWarning(
+        message="This endpoint will be removed in a future version. Use, `/economy/interest_rates`, instead.",
+        since=(4, 3),
+        expected_removal=(4, 5),
+    ),
     examples=[
         APIEx(parameters={"provider": "oecd"}),
         APIEx(
@@ -368,6 +411,47 @@ async def available_indicators(
             description="Use the `main` symbol to get the group of main indicators for a country.",
             parameters={"provider": "econdb", "symbol": "main", "country": "eu"},
         ),
+        APIEx(
+            description="When the provider is 'imf', the absence of a symbol will default to 'irfcl_top_lines'."
+            + " Use 'IRFCL' to get all the data from the set of indicators.",
+            parameters={"provider": "imf"},
+        ),
+        APIEx(
+            description="When the provider is 'imf', complete tables are returned by using a 'preset'."
+            + " Refer to the function's docstring for descriptions of each preset."
+            + " When no country is supplied, the data is returned for all countries.",
+            parameters={"provider": "imf", "symbol": "gold_reserves"},
+        ),
+        APIEx(
+            description="When the provider is 'imf', multiple countries and symbols can be supplied."
+            + " Enter countries as a two-letter ISO country code, or the country name in lower_snake_case.",
+            parameters={
+                "provider": "imf",
+                "symbol": "RAFA_USD,RAPFA_USD,RAFA_RAPFA_RO",
+                "country": "us,china,jp,4f,gb",
+                "start_date": "2010-01-01",
+                "end_date": "2020-12-31",
+                "frequency": "annual",
+            },
+        ),
+        APIEx(
+            description=(
+                "When the provider is 'imf', additional presets return the core Financial Soundness Indicators."
+                "\n    'fsi_core' -  Core FSIs"
+                "\n    'fsi_encouraged_set' - Encouraged Set of FSIs,"
+                "\n    'fsi_core_underlying' - Underlying data for the Core FSIs."
+                "\n    'fsi_other' - Additional/Other FSIs that are not in the Core or Encouraged Set."
+                "\n    'fsi_all' - all FSI data for a single country."
+            ),
+            parameters={
+                "provider": "imf",
+                "symbol": "fsi_encouraged_set",
+                "country": "us,fr,gb",
+                "start_date": "2022-01-01",
+                "end_date": "2023-12-31",
+                "frequency": "annual",
+            },
+        ),
     ],
 )
 async def indicators(
@@ -377,4 +461,332 @@ async def indicators(
     extra_params: ExtraParams,
 ) -> OBBject:
     """Get economic indicators by country and indicator."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="CentralBankHoldings",
+    examples=[
+        APIEx(
+            description="The default is the latest Treasury securities held by the Federal Reserve.",
+            parameters={"provider": "federal_reserve"},
+        ),
+        APIEx(
+            description="Get historical summaries of the Fed's holdings.",
+            parameters={"provider": "federal_reserve", "summary": True},
+        ),
+        APIEx(
+            description="Get the balance sheet holdings as-of a historical date.",
+            parameters={"provider": "federal_reserve", "date": "2019-05-21"},
+        ),
+        APIEx(
+            description="Use the `holding_type` parameter to select Agency securities,"
+            + " or specific categories or Treasury securities.",
+            parameters={"provider": "federal_reserve", "holding_type": "agency_debts"},
+        ),
+    ],
+)
+async def central_bank_holdings(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get the balance sheet holdings of a central bank."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="SharePriceIndex",
+    examples=[
+        APIEx(parameters={"provider": "oecd"}),
+        APIEx(
+            description="Multiple countries can be passed in as a list.",
+            parameters={
+                "country": "united_kingdom,germany",
+                "frequency": "quarter",
+                "provider": "oecd",
+            },
+        ),
+    ],
+)
+async def share_price_index(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get the Share Price Index by country from the OECD Short-Term Economics Statistics."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="HousePriceIndex",
+    examples=[
+        APIEx(parameters={"provider": "oecd"}),
+        APIEx(
+            description="Multiple countries can be passed in as a list.",
+            parameters={
+                "country": "united_kingdom,germany",
+                "frequency": "quarter",
+                "provider": "oecd",
+            },
+        ),
+    ],
+)
+async def house_price_index(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get the House Price Index by country from the OECD Short-Term Economics Statistics."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="ImmediateInterestRate",
+    deprecated=True,
+    deprecation=OpenBBDeprecationWarning(
+        message="This endpoint will be removed in a future version. Use, `/economy/interest_rates`, instead.",
+        since=(4, 3),
+        expected_removal=(4, 5),
+    ),
+    examples=[
+        APIEx(parameters={"provider": "oecd"}),
+        APIEx(
+            description="Multiple countries can be passed in as a list.",
+            parameters={
+                "country": "united_kingdom,germany",
+                "frequency": "monthly",
+                "provider": "oecd",
+            },
+        ),
+    ],
+)
+async def immediate_interest_rate(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get immediate interest rates by country."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="CountryInterestRates",
+    examples=[
+        APIEx(parameters={"provider": "oecd"}),
+        APIEx(
+            description="For OECD, duration can be 'immediate', 'short', or 'long'."
+            + " Default is 'short', which is the 3-month rate."
+            + " Overnight interbank rate is 'immediate', and 10-year rate is 'long'.",
+            parameters={
+                "provider": "oecd",
+                "country": "all",
+                "duration": "immediate",
+                "frequency": "quarter",
+            },
+        ),
+        APIEx(
+            description="Multiple countries can be passed in as a list.",
+            parameters={
+                "duration": "long",
+                "country": "united_kingdom,germany",
+                "frequency": "monthly",
+                "provider": "oecd",
+            },
+        ),
+    ],
+)
+async def interest_rates(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get interest rates by country(s) and duration.
+    Most OECD countries publish short-term, a long-term, and immediate rates monthly.
+    """
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="RetailPrices",
+    examples=[
+        APIEx(parameters={"provider": "fred"}),
+        APIEx(
+            description="The price of eggs in the northeast census region.",
+            parameters={
+                "item": "eggs",
+                "region": "northeast",
+                "provider": "fred",
+            },
+        ),
+        APIEx(
+            description="The percentage change in price, from one-year ago, of various meats, US City Average.",
+            parameters={
+                "item": "meats",
+                "transform": "pc1",
+                "provider": "fred",
+            },
+        ),
+    ],
+)
+async def retail_prices(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get retail prices for common items."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="PrimaryDealerPositioning",
+    examples=[
+        APIEx(parameters={"provider": "federal_reserve"}),
+        APIEx(
+            parameters={
+                "category": "abs",
+                "provider": "federal_reserve",
+            },
+        ),
+    ],
+)
+async def primary_dealer_positioning(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get Primary dealer positioning statistics."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="PersonalConsumptionExpenditures",
+    examples=[
+        APIEx(parameters={"provider": "fred"}),
+        APIEx(
+            description="Get reports for multiple dates, entered as a comma-separated string.",
+            parameters={
+                "provider": "fred",
+                "date": "2024-05-01,2024-04-01,2023-05-01",
+                "category": "pce_price_index",
+            },
+        ),
+    ],
+)
+async def pce(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get Personal Consumption Expenditures (PCE) reports."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="ExportDestinations",
+    examples=[
+        APIEx(parameters={"provider": "econdb", "country": "us"}),
+    ],
+)
+async def export_destinations(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get top export destinations by country from the UN Comtrade International Trade Statistics Database."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="PrimaryDealerFails",
+    examples=[
+        APIEx(parameters={"provider": "federal_reserve"}),
+        APIEx(
+            description="Transform the data to be percentage totals by asset class",
+            parameters={"provider": "federal_reserve", "unit": "percent"},
+        ),
+    ],
+)
+async def primary_dealer_fails(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Primary Dealer Statistics for Fails to Deliver and Fails to Receive.
+
+    Data from the NY Federal Reserve are updated on Thursdays at approximately
+    4:15 p.m. with the previous week's statistics.
+
+    For research on the topic, see:
+    https://www.federalreserve.gov/econres/notes/feds-notes/the-systemic-nature-of-settlement-fails-20170703.html
+
+    "Large and protracted settlement fails are believed to undermine the liquidity
+    and well-functioning of securities markets.
+
+    Near-100 percent pass-through of fails suggests a high degree of collateral
+    re-hypothecation together with the inability or unwillingness to borrow or buy the needed securities."
+    """
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="PortVolume",
+    examples=[
+        APIEx(parameters={"provider": "econdb"}),
+    ],
+)
+async def port_volume(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get average dwelling times and TEU volumes from the top ports."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="DirectionOfTrade",
+    examples=[
+        APIEx(parameters={"provider": "imf", "country": "all", "counterpart": "china"}),
+        APIEx(
+            description="Select multiple countries or counterparts by entering a comma-separated list."
+            + " The direction of trade can be 'exports', 'imports', 'balance', or 'all'.",
+            parameters={
+                "provider": "imf",
+                "country": "us",
+                "counterpart": "world,eu",
+                "frequency": "annual",
+                "direction": "exports",
+            },
+        ),
+    ],
+)
+async def direction_of_trade(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get Direction Of Trade Statistics from the IMF database.
+
+    The Direction of Trade Statistics (DOTS) presents the value of merchandise exports and
+    imports disaggregated according to a country's primary trading partners.
+    Area and world aggregates are included in the display of trade flows between major areas of the world.
+    Reported data is supplemented by estimates whenever such data is not available or current.
+    Imports are reported on a cost, insurance and freight (CIF) basis
+    and exports are reported on a free on board (FOB) basis.
+    Time series data includes estimates derived from reports of partner countries
+    for non-reporting and slow-reporting countries.
+    """
     return await OBBject.from_query(Query(**locals()))

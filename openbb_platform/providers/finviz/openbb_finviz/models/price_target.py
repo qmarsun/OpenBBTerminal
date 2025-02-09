@@ -2,19 +2,14 @@
 
 # pylint: disable=unused-argument
 
-import warnings
 from typing import Any, Dict, List, Optional
 
-from finvizfinance.quote import finvizfinance
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.price_target import (
     PriceTargetData,
     PriceTargetQueryParams,
 )
-from pandas import DataFrame
 from pydantic import Field
-
-_warn = warnings.warn
 
 
 class FinvizPriceTargetQueryParams(PriceTargetQueryParams):
@@ -66,18 +61,28 @@ class FinvizPriceTargetFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Finviz endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from finvizfinance import util  # noqa
+        from finvizfinance.quote import finvizfinance
+        from openbb_core.app.model.abstract.error import OpenBBError
+        from openbb_core.provider.utils.errors import EmptyDataError
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from pandas import DataFrame
+        from warnings import warn
 
-        results: List[dict] = []
+        results: List[Dict] = []
+        util.session = get_requests_session()
+        messages: List = []
 
         def get_one(symbol) -> List[Dict]:
             """Get the data for one symbol."""
             price_targets = DataFrame()
-            result: List[dict] = []
+            result: List[Dict] = []
             try:
                 data = finvizfinance(symbol)
                 price_targets = data.ticker_outer_ratings()
                 if price_targets is None or len(price_targets) == 0:
-                    _warn(f"Failed to get data for {symbol}")
+                    messages.append(f"Failed to get data for {symbol}")
                     return result
                 price_targets["symbol"] = symbol
                 prices = (
@@ -95,16 +100,27 @@ class FinvizPriceTargetFetcher(
                 ] = None
                 price_targets = price_targets.replace("", None).drop(columns="Price")
             except Exception as e:  # pylint: disable=W0718
-                _warn(f"Failed to get data for {symbol} -> {e}")
+                messages.append(f"Failed to get data for {symbol} -> {e}")
                 return result
             result = price_targets.to_dict(orient="records")
             return result
 
         symbols = query.symbol.split(",") if query.symbol else []
+
         for symbol in symbols:
             result = get_one(symbol)
-            if result is not None and result != []:
+            if result:
                 results.extend(result)
+
+        if not results and messages:
+            raise OpenBBError("\n".join(messages))
+
+        if not results and not messages:
+            raise EmptyDataError("No data was returned for any symbol")
+
+        if results and messages:
+            for message in messages:
+                warn(message)
 
         return results
 

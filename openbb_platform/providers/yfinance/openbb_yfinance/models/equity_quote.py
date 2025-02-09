@@ -1,9 +1,9 @@
 """YFinance Equity Quote Model."""
 
 # pylint: disable=unused-argument
-import asyncio
-import warnings
+
 from typing import Any, Dict, List, Optional
+from warnings import warn
 
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_quote import (
@@ -11,9 +11,6 @@ from openbb_core.provider.standard_models.equity_quote import (
     EquityQuoteQueryParams,
 )
 from pydantic import Field
-from yfinance import Ticker
-
-_warn = warnings.warn
 
 
 class YFinanceEquityQuoteQueryParams(EquityQuoteQueryParams):
@@ -34,27 +31,27 @@ class YFinanceEquityQuoteData(EquityQuoteData):
         "prev_close": "previousClose",
         "year_high": "fiftyTwoWeekHigh",
         "year_low": "fiftyTwoWeekLow",
+        "ma_50d": "fiftyDayAverage",
+        "ma_200d": "twoHundredDayAverage",
+        "volume_average": "averageVolume",
+        "volume_average_10d": "averageDailyVolume10Day",
     }
 
     ma_50d: Optional[float] = Field(
         default=None,
         description="50-day moving average price.",
-        alias="fiftyDayAverage",
     )
     ma_200d: Optional[float] = Field(
         default=None,
         description="200-day moving average price.",
-        alias="twoHundredDayAverage",
     )
     volume_average: Optional[float] = Field(
         default=None,
         description="Average daily trading volume.",
-        alias="averageVolume",
     )
     volume_average_10d: Optional[float] = Field(
         default=None,
         description="Average daily trading volume in the last 10 days.",
-        alias="averageDailyVolume10Day",
     )
     currency: Optional[str] = Field(
         default=None,
@@ -79,6 +76,13 @@ class YFinanceEquityQuoteFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data from YFinance."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from yfinance import Ticker
+
+        session = get_requests_session()
+
         symbols = query.symbol.split(",")
         results = []
         fields = [
@@ -107,12 +111,16 @@ class YFinanceEquityQuoteFetcher(
 
         async def get_one(symbol):
             """Get the data for one ticker symbol."""
-            result = {}
-            ticker = {}
+            result: dict = {}
+            ticker: dict = {}
             try:
-                ticker = Ticker(symbol).get_info()
+                ticker = Ticker(
+                    symbol,
+                    session=session,
+                    proxy=session.proxies if session.proxies else None,
+                ).get_info()
             except Exception as e:
-                _warn(f"Error getting data for {symbol}: {e}")
+                warn(f"Error getting data for {symbol}: {e}")
             if ticker:
                 for field in fields:
                     if field in ticker:

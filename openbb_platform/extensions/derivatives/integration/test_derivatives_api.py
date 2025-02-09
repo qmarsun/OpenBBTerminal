@@ -24,9 +24,29 @@ def headers():
 @parametrize(
     "params",
     [
-        ({"provider": "intrinio", "symbol": "AAPL", "date": "2023-01-25"}),
+        (
+            {
+                "provider": "intrinio",
+                "symbol": "AAPL",
+                "date": "2023-01-25",
+                "option_type": None,
+                "moneyness": "all",
+                "strike_gt": None,
+                "strike_lt": None,
+                "volume_gt": None,
+                "volume_lt": None,
+                "oi_gt": None,
+                "oi_lt": None,
+                "model": "black_scholes",
+                "show_extended_price": False,
+                "include_related_symbols": False,
+                "delay": "delayed",
+            }
+        ),
         ({"provider": "cboe", "symbol": "AAPL", "use_cache": False}),
         ({"provider": "tradier", "symbol": "AAPL"}),
+        ({"provider": "yfinance", "symbol": "AAPL"}),
+        ({"provider": "deribit", "symbol": "BTC"}),
         (
             {
                 "provider": "tmx",
@@ -93,6 +113,15 @@ def test_derivatives_options_unusual(params, headers):
                 "expiration": "2025-12",
             }
         ),
+        (
+            {
+                "provider": "deribit",
+                "interval": "1d",
+                "symbol": "BTC,ETH",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
     ],
 )
 @pytest.mark.integration
@@ -110,8 +139,21 @@ def test_derivatives_futures_historical(params, headers):
 @parametrize(
     "params",
     [
-        ({"provider": "cboe", "symbol": "VX", "date": None}),
-        ({"provider": "yfinance", "symbol": "ES", "date": "2023-08-01"}),
+        (
+            {
+                "provider": "yfinance",
+                "symbol": "ES",
+                "date": None,
+            }
+        ),
+        (
+            {
+                "provider": "cboe",
+                "symbol": "VX_EOD",
+                "date": "2024-06-25",
+            }
+        ),
+        ({"provider": "deribit", "date": None, "symbol": "BTC", "hours_ago": 12}),
     ],
 )
 @pytest.mark.integration
@@ -121,6 +163,62 @@ def test_derivatives_futures_curve(params, headers):
 
     query_str = get_querystring(params, [])
     url = f"http://0.0.0.0:8000/api/v1/derivatives/futures/curve?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+
+@parametrize(
+    "params",
+    [
+        ({"provider": "intrinio", "date": None, "only_traded": True}),
+    ],
+)
+@pytest.mark.skip(
+    reason="This test is skipped because the download is excessively large."
+)
+def test_derivatives_options_snapshots(params, headers):
+    """Test the options snapshots endpoint."""
+    params = {p: v for p, v in params.items() if v}
+
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/derivatives/options/snapshots?{query_str}"
     result = requests.get(url, headers=headers, timeout=60)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+
+@parametrize(
+    "params",
+    [
+        ({"provider": "deribit"}),
+    ],
+)
+@pytest.mark.integration
+def test_derivatives_futures_instruments(params, headers):
+    """Test the futures instruments endpoint."""
+    params = {p: v for p, v in params.items() if v}
+
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/derivatives/futures/instruments?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+
+@parametrize(
+    "params",
+    [
+        ({"provider": "deribit", "symbol": "ETH-PERPETUAL"}),
+    ],
+)
+@pytest.mark.integration
+def test_derivatives_futures_info(params, headers):
+    """Test the futures info endpoint."""
+    params = {p: v for p, v in params.items() if v}
+
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/derivatives/futures/info?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10)
     assert isinstance(result, requests.Response)
     assert result.status_code == 200

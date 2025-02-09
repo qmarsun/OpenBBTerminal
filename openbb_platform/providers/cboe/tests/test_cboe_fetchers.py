@@ -102,6 +102,7 @@ def test_cboe_available_indices_fetcher(credentials=test_credentials):
 @pytest.mark.record_http
 def test_cboe_options_chains_fetcher(credentials=test_credentials):
     """Test Cboe options chains fetcher."""
+
     params = {"symbol": "AAPL", "use_cache": False}
 
     fetcher = CboeOptionsChainsFetcher()
@@ -132,7 +133,7 @@ def test_cboe_equity_quote_fetcher(credentials=test_credentials):
 @pytest.mark.record_http
 def test_cboe_futures_curve_fetcher(credentials=test_credentials):
     """Test Cboe futures curve fetcher."""
-    params = {"symbol": "VX"}
+    params = {"symbol": "VX_EOD", "date": "2024-06-27", "use_cache": False}
 
     fetcher = CboeFuturesCurveFetcher()
     result = fetcher.test(params, credentials)

@@ -2,17 +2,13 @@
 
 # pylint: disable=unused-argument
 
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_performance import (
-    EquityPerformanceData,
     EquityPerformanceQueryParams,
 )
-from openbb_core.provider.utils.helpers import make_request
-from openbb_yfinance.utils.helpers import df_transform_numbers
+from openbb_yfinance.utils.references import YFPredefinedScreenerData
 from pydantic import Field
 
 
@@ -22,74 +18,72 @@ class YFAggressiveSmallCapsQueryParams(EquityPerformanceQueryParams):
     Source: https://finance.yahoo.com/screener/predefined/aggressive_small_caps
     """
 
+    limit: Optional[int] = Field(
+        default=None,
+        description="Limit the number of results. Default is all.",
+    )
 
-class YFAggressiveSmallCapsData(EquityPerformanceData):
+
+class YFAggressiveSmallCapsData(YFPredefinedScreenerData):
     """Yahoo Finance Aggressive Small Caps Data."""
-
-    __alias_dict__ = {
-        "symbol": "Symbol",
-        "name": "Name",
-        "volume": "Volume",
-        "change": "Change",
-        "price": "Price (Intraday)",
-        "percent_change": "% Change",
-        "market_cap": "Market Cap",
-        "avg_volume_3_months": "Avg Vol (3 month)",
-        "pe_ratio_ttm": "PE Ratio (TTM)",
-    }
-
-    market_cap: Optional[float] = Field(
-        default=None,
-        description="Market Cap.",
-    )
-    avg_volume_3_months: Optional[float] = Field(
-        default=None,
-        description="Average volume over the last 3 months in millions.",
-    )
-    pe_ratio_ttm: Optional[float] = Field(
-        description="PE Ratio (TTM).",
-        default=None,
-    )
 
 
 class YFAggressiveSmallCapsFetcher(
-    Fetcher[YFAggressiveSmallCapsQueryParams, List[YFAggressiveSmallCapsData]]
+    Fetcher[YFAggressiveSmallCapsQueryParams, list[YFAggressiveSmallCapsData]]
 ):
     """Transform the query, extract and transform the data from the Yahoo Finance endpoints."""
 
     @staticmethod
-    def transform_query(params: Dict[str, Any]) -> YFAggressiveSmallCapsQueryParams:
+    def transform_query(params: dict[str, Any]) -> YFAggressiveSmallCapsQueryParams:
         """Transform query params."""
         return YFAggressiveSmallCapsQueryParams(**params)
 
     @staticmethod
-    def extract_data(
+    async def aextract_data(
         query: YFAggressiveSmallCapsQueryParams,
-        credentials: Optional[Dict[str, str]],
+        credentials: Optional[dict[str, str]],
         **kwargs: Any,
-    ) -> pd.DataFrame:
+    ) -> list[dict]:
         """Get data from YF."""
-        headers = {"user_agent": "Mozilla/5.0"}
-        html = make_request(
-            "https://finance.yahoo.com/screener/predefined/aggressive_small_caps",
-            headers=headers,
-        ).text
-        html_clean = re.sub(r"(<span class=\"Fz\(0\)\">).*?(</span>)", "", html)
-        df = pd.read_html(html_clean, header=None)[0].dropna(how="all", axis=1)
-        return df
+        # pylint: disable=import-outside-toplevel
+        from openbb_yfinance.utils.helpers import get_custom_screener
+
+        # The predefined screener doesn't match what yFinance has for the settings. We'll have to create our own.
+        body = {
+            "offset": 0,
+            "size": 250,
+            "sortField": "totalrevenues1yrgrowth.lasttwelvemonths",
+            "sortType": "desc",
+            "quoteType": "equity",
+            "query": {
+                "operator": "and",
+                "operands": [
+                    {"operator": "lt", "operands": ["intradaymarketcap", 2000000000]},
+                    {
+                        "operator": "or",
+                        "operands": [
+                            {"operator": "eq", "operands": ["exchange", "NMS"]},
+                            {"operator": "eq", "operands": ["exchange", "NYQ"]},
+                        ],
+                    },
+                    {"operator": "gt", "operands": ["epsgrowth.lasttwelvemonths", 25]},
+                    {"operator": "gt", "operands": ["intradayprice", 5]},
+                ],
+            },
+            "userId": "",
+            "userIdType": "guid",
+        }
+        return await get_custom_screener(body=body, limit=query.limit)
 
     @staticmethod
     def transform_data(
         query: EquityPerformanceQueryParams,
-        data: pd.DataFrame,
+        data: list[dict],
         **kwargs: Any,
-    ) -> List[YFAggressiveSmallCapsData]:
+    ) -> list[YFAggressiveSmallCapsData]:
         """Transform data."""
-
-        columns = ["Market Cap", "Avg Vol (3 month)", "Volume", "% Change"]
-
-        data = df_transform_numbers(data=data, columns=columns)
-        data = data.fillna("N/A").replace("N/A", None)
-        return [
-            YFAggressiveSmallCapsData.model_validate(d) for d in data.to_dict("records")
-        ]
+        return sorted(
+            [YFAggressiveSmallCapsData.model_validate(d) for d in data],
+            key=lambda x: x.percent_change,
+            reverse=query.sort == "desc",
+        )

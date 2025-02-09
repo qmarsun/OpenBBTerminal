@@ -1,4 +1,4 @@
-"""Main Indicators"""
+"""Main Indicators."""
 
 from datetime import datetime, timedelta
 from typing import Dict, List, Literal, Union
@@ -6,6 +6,7 @@ from typing import Dict, List, Literal, Union
 from aiohttp_client_cache import SQLiteBackend
 from aiohttp_client_cache.session import CachedSession
 from numpy import arange
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.app.utils import get_user_cache_directory
 from openbb_core.provider.utils.helpers import amake_request
 from openbb_econdb.utils.helpers import COUNTRY_MAP, THREE_LETTER_ISO_MAP
@@ -102,15 +103,15 @@ async def get_main_indicators(  # pylint: disable=R0913,R0914,R0915
     if len(country) == 3:
         country = THREE_LETTER_ISO_MAP.get(country.upper())
         if not country:
-            raise ValueError(f"Error: Invalid country code -> {country}")
+            raise OpenBBError(f"Error: Invalid country code -> {country}")
     if country in COUNTRY_MAP:
         country = COUNTRY_MAP.get(country)
     if len(country) != 2:
-        raise ValueError(
+        raise OpenBBError(
             f"Error: Please supply a 2-Letter ISO Country Code -> {country}"
         )
     if country not in COUNTRY_MAP.values():
-        raise ValueError(f"Error: Invalid country code -> {country}")
+        raise OpenBBError(f"Error: Invalid country code -> {country}")
     parents_url = (
         "https://www.econdb.com/trends/country_forecast/"
         + f"?country={country}&freq={freq}&transform={transform}"
@@ -165,17 +166,19 @@ async def get_main_indicators(  # pylint: disable=R0913,R0914,R0915
         if "CONF" in child_df.index and child_df.loc["CONF", "units"] == "..":
             child_df.loc["CONF", "units"] = "Index"
         child_df["is_parent"] = parent
-        child_df = child_df.reset_index()
+        child_df = child_df.reset_index().rename(columns={"index": "indicator"})
         child_df["name"] = child_df["indicator"].map(row_name_map)
         return child_df
 
-    new_df = df.reset_index()
+    new_df = df.copy()
+    new_df = new_df.reset_index().rename(columns={"level_0": "indicator"})
+
     has_children = new_df[
         new_df["is_parent"] == True  # noqa pylint: disable=C0121
-    ].indicator.to_list()
+    ].indicator.tolist()
 
     async def append_children(  # pylint: disable=R0913
-        df, parent, country, freq, transform, start_date, end_date, use_cache
+        parent_df, parent, country, freq, transform, start_date, end_date, use_cache
     ):
         """Get the child element and insert it below the parent row."""
         temp = DataFrame()
@@ -184,10 +187,11 @@ async def get_main_indicators(  # pylint: disable=R0913,R0914,R0915
                 parent, country, freq, transform, start_date, end_date, use_cache
             )
         except Exception as _:  # pylint: disable=W0718
-            return df
-        idx = df[df["indicator"] == parent].index[0]
-        df1 = df[df.index <= idx]
-        df2 = df[df.index > idx]
+            return parent_df
+
+        idx = parent_df[parent_df["indicator"] == parent].index[0]
+        df1 = parent_df[parent_df.index <= idx]
+        df2 = parent_df[parent_df.index > idx]
         temp = concat([df1, children, df2])
         return temp
 
@@ -207,7 +211,7 @@ async def get_main_indicators(  # pylint: disable=R0913,R0914,R0915
     new_df = new_df.apply(lambda row: row / 100 if "%" in row.name[3] else row, axis=1)
     new_df = new_df.iloc[:, ::-1]
     new_df = new_df.fillna("N/A").replace("N/A", None)
-    output = new_df
+    output = new_df.copy()
     output.columns.name = "date"
     output = output.reset_index()
     filtered_df = output[output["indicator"].isin(main_indicators_order)].copy()

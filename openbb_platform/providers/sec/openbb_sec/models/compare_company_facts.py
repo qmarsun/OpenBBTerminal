@@ -13,12 +13,10 @@ from openbb_core.provider.standard_models.compare_company_facts import (
 )
 from openbb_core.provider.utils.descriptions import DATA_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_sec.utils.frames import (
+from openbb_sec.utils.definitions import (
     FACT_CHOICES,
     FACTS,
     FISCAL_PERIODS,
-    get_concept,
-    get_frame,
 )
 from pydantic import Field, field_validator
 
@@ -38,6 +36,11 @@ class SecCompareCompanyFactsQueryParams(CompareCompanyFactsQueryParams):
 
     __json_schema_extra__ = {
         "symbol": {"multiple_items_allowed": True},
+        "fact": {"multiple_items_allowed": False, "choices": sorted(FACTS)},
+        "fiscal_period": {
+            "multiple_items_allowed": False,
+            "choices": ["fy", "q1", "q2", "q3", "q4"],
+        },
     }
 
     fact: FACT_CHOICES = Field(
@@ -45,7 +48,6 @@ class SecCompareCompanyFactsQueryParams(CompareCompanyFactsQueryParams):
         description="Fact or concept from the SEC taxonomy, in UpperCamelCase. Defaults to, 'Revenues'."
         + " AAPL, MSFT, GOOG, BRK-A currently report revenue as, 'RevenueFromContractWithCustomerExcludingAssessedTax'."
         + " In previous years, they have reported as 'Revenues'.",
-        json_schema_extra={"choices": sorted(FACTS)},
     )
     year: Optional[int] = Field(
         default=None,
@@ -139,6 +141,9 @@ class SecCompareCompanyFactsFetcher(
         **kwargs: Any,
     ) -> Dict:
         """Return the raw data from the SEC endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_sec.utils.frames import get_concept, get_frame
+
         results: Dict = {}
         if not query.symbol:
             results = await get_frame(

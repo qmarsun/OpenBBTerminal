@@ -7,14 +7,13 @@ from datetime import (
 from typing import Optional, Union
 
 from dateutil import parser
-from pydantic import Field, StrictFloat, field_validator
-
 from openbb_core.provider.abstract.data import Data, ForceInt
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field, StrictFloat, field_validator
 
 
 class IndexHistoricalQueryParams(QueryParams):
@@ -27,22 +26,12 @@ class IndexHistoricalQueryParams(QueryParams):
     end_date: Optional[dateType] = Field(
         description=QUERY_DESCRIPTIONS.get("end_date", ""), default=None
     )
-    interval: Optional[str] = Field(
-        default="1d",
-        description=QUERY_DESCRIPTIONS.get("interval", ""),
-    )
 
     @field_validator("symbol", mode="before", check_fields=False)
     @classmethod
     def to_upper(cls, v: str) -> str:
         """Convert field to uppercase."""
         return v.upper()
-
-    @field_validator("sort", mode="before", check_fields=False)
-    @classmethod
-    def to_lower(cls, v: Optional[str]) -> Optional[str]:
-        """Convert field to lowercase."""
-        return v.lower() if v else v
 
 
 class IndexHistoricalData(Data):

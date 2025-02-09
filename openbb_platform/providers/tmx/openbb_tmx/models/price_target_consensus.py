@@ -1,17 +1,15 @@
-"""TMX Stock Analysts Model"""
+"""TMX Stock Analysts Model."""
 
 # pylint: disable=unused-argument
-import asyncio
-import json
+
 from typing import Any, Dict, List, Optional
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.price_target_consensus import (
     PriceTargetConsensusData,
     PriceTargetConsensusQueryParams,
 )
-from openbb_tmx.utils import gql
-from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent
 from pydantic import Field, field_validator
 
 
@@ -25,7 +23,7 @@ class TmxPriceTargetConsensusQueryParams(PriceTargetConsensusQueryParams):
     def check_symbol(cls, value):
         """Check the symbol."""
         if not value:
-            raise RuntimeError("Error: Symbol is a required field for TMX.")
+            raise OpenBBError("Symbol is a required field for TMX.")
         return value
 
 
@@ -96,6 +94,12 @@ class TmxPriceTargetConsensusFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        import json  # noqa
+        from openbb_tmx.utils import gql  # noqa
+        from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent  # noqa
+
         symbols = query.symbol.split(",")  # type: ignore
         results: List[Dict] = []
 

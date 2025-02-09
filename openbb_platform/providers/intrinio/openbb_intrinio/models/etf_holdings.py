@@ -5,6 +5,7 @@
 from datetime import date as dateType
 from typing import Any, Dict, List, Optional, Union
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_holdings import (
     EtfHoldingsData,
@@ -90,6 +91,7 @@ class IntrinioEtfHoldingsData(EtfHoldingsData):
     coupon: Optional[float] = Field(
         default=None,
         description="The coupon rate of the debt security, if available.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     balance: Optional[Union[int, float]] = Field(
         default=None,
@@ -106,18 +108,22 @@ class IntrinioEtfHoldingsData(EtfHoldingsData):
     face_value: Optional[float] = Field(
         default=None,
         description="The face value of the debt security, if available.",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     derivatives_value: Optional[float] = Field(
         default=None,
         description="The notional value of derivatives contracts held.",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     value: Optional[float] = Field(
         default=None,
         description="The market value of the holding, on the 'as_of' date.",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     weight: Optional[float] = Field(
         default=None,
         description="The weight of the holding, as a normalized percent.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     updated: Optional[dateType] = Field(
         default=None,
@@ -188,20 +194,21 @@ class IntrinioEtfHoldingsFetcher(
         **kwargs: Any,
     ) -> List[IntrinioEtfHoldingsData]:
         """Transform data."""
-
         if not data or isinstance(data, dict) and data.get("error"):
             if isinstance(data, list) and data == []:
-                raise RuntimeError(
+                raise OpenBBError(
                     str(
                         f"No holdings were found for {query.symbol}, and the response from Intrinio was empty."
                     )
                 )
-            raise RuntimeError(str(f"{data.get('message')} {query.symbol}: {data['error']}"))  # type: ignore
+            raise OpenBBError(str(f"{data.get('message')} {query.symbol}: {data['error']}"))  # type: ignore
 
         results: List[IntrinioEtfHoldingsData] = []
         for d in sorted(data, key=lambda x: x["weighting"], reverse=True):
             # This field is deprecated and is dupilcated in the response.
             _ = d.pop("composite_figi", None)
+            if d.get("coupon"):
+                d["coupon"] = d["coupon"] / 100
             results.append(IntrinioEtfHoldingsData.model_validate(d))
 
         return results

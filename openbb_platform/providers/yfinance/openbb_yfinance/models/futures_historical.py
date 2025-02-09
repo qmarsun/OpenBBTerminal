@@ -1,12 +1,10 @@
 """Yahoo Finance Futures Historical Price Model."""
 
 # pylint: disable=unused-argument
-# ruff: noqa: SIM105
 
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from dateutil.relativedelta import relativedelta
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.futures_historical import (
     FuturesHistoricalData,
@@ -14,9 +12,7 @@ from openbb_core.provider.standard_models.futures_historical import (
 )
 from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_yfinance.utils.helpers import get_futures_data, yf_download
 from openbb_yfinance.utils.references import INTERVALS_DICT, MONTHS
-from pandas import Timestamp
 from pydantic import Field, field_validator
 
 
@@ -55,6 +51,9 @@ class YFinanceFuturesHistoricalData(FuturesHistoricalData):
     @classmethod
     def date_validate(cls, v):
         """Return datetime object from string."""
+        # pylint: disable=import-outside-toplevel
+        from pandas import Timestamp
+
         if isinstance(v, Timestamp):
             return v.to_pydatetime()
         return v
@@ -70,7 +69,11 @@ class YFinanceFuturesHistoricalFetcher(
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> YFinanceFuturesHistoricalQueryParams:
-        """Transform the query. Setting the start and end dates for a 1 year period."""
+        """Transform the query."""
+        # pylint: disable=import-outside-toplevel
+        from dateutil.relativedelta import relativedelta
+        from openbb_yfinance.utils.helpers import get_futures_data
+
         transformed_params = params.copy()
 
         symbols = params["symbol"].split(",")
@@ -85,11 +88,9 @@ class YFinanceFuturesHistoricalFetcher(
                     exchange = futures_data[futures_data["Ticker"] == symbol][
                         "Exchange"
                     ].values[0]
-                new_symbol = (
-                    f"{symbol}{MONTHS[expiry_date.month]}{str(expiry_date.year)[-2:]}.{exchange}"
-                    if "." not in symbol
-                    else symbol
-                )
+                    new_symbol = f"{symbol}{MONTHS[expiry_date.month]}{str(expiry_date.year)[-2:]}.{exchange}"
+                else:
+                    new_symbol = symbol
                 new_symbols.append(new_symbol)
             else:
                 new_symbols.append(symbol)
@@ -122,10 +123,13 @@ class YFinanceFuturesHistoricalFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Yahoo Finance endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_yfinance.utils.helpers import yf_download
+
         data = yf_download(
             query.symbol,
-            start=query.start_date,
-            end=query.end_date,
+            start_date=query.start_date,
+            end_date=query.end_date,
             interval=INTERVALS_DICT[query.interval],  # type: ignore
             prepost=True,
             auto_adjust=False,

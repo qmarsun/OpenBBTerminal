@@ -1,7 +1,7 @@
 """TMX Equity Gainers Model."""
 
 # pylint: disable=unused-argument
-import json
+
 from typing import Any, Dict, List, Literal, Optional
 
 from openbb_core.provider.abstract.fetcher import Fetcher
@@ -10,8 +10,6 @@ from openbb_core.provider.standard_models.equity_performance import (
     EquityPerformanceQueryParams,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_tmx.utils import gql
-from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent
 from pydantic import Field, field_validator, model_validator
 
 STOCK_LISTS_DICT = {
@@ -46,6 +44,13 @@ STOCK_LISTS = Literal[
 class TmxGainersQueryParams(EquityPerformanceQueryParams):
     """TMX Gainers Query Params."""
 
+    __json_schema_extra__ = {
+        "category": {
+            "multiple_items_allowed": False,
+            "choices": list(STOCK_LISTS_DICT),
+        },
+    }
+
     category: STOCK_LISTS = Field(
         default="price_performer",
         description="The category of list to retrieve. Defaults to `price_performer`.",
@@ -65,6 +70,25 @@ class TmxGainersData(EquityPerformanceData):
         "avg_volume_10d": "10 Day Avg. Volume",
         "ninety_day_price_change": "90 Day Price Change",
     }
+    thirty_day_price_change: Optional[float] = Field(
+        default=None,
+        description="30 Day Price Change.",
+        json_schema_extra={"x-unit_measurement": "currency"},
+    )
+    ninety_day_price_change: Optional[float] = Field(
+        default=None,
+        description="90 Day Price Change.",
+        json_schema_extra={"x-unit_measurement": "currency"},
+    )
+    dividend_yield: Optional[float] = Field(
+        default=None,
+        description="Dividend Yield.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
+    )
+    avg_volume_10d: Optional[float] = Field(
+        default=None,
+        description="10 Day Avg. Volume.",
+    )
     rank: int = Field(description="The rank of the stock in the list.")
 
     @field_validator("percent_change", mode="after", check_fields=False)
@@ -105,6 +129,11 @@ class TmxGainersFetcher(
         **kwargs: Any,
     ) -> List[TmxGainersData]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import json  # noqa
+        from openbb_tmx.utils import gql  # noqa
+        from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent  # noqa
+
         user_agent = get_random_agent()
         payload = gql.get_stock_list_payload.copy()
         payload["variables"]["stockListId"] = STOCK_LISTS_DICT[query.category]

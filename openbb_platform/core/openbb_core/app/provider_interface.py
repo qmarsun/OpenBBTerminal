@@ -15,7 +15,12 @@ from typing import (
     Union,
 )
 
-from fastapi import Query
+from fastapi import Body, Query
+from openbb_core.app.model.abstract.singleton import SingletonMeta
+from openbb_core.app.model.obbject import OBBject
+from openbb_core.provider.query_executor import QueryExecutor
+from openbb_core.provider.registry_map import MapType, RegistryMap
+from openbb_core.provider.utils.helpers import to_snake_case
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -26,12 +31,6 @@ from pydantic import (
     create_model,
 )
 from pydantic.fields import FieldInfo
-
-from openbb_core.app.model.abstract.singleton import SingletonMeta
-from openbb_core.app.model.obbject import OBBject
-from openbb_core.provider.query_executor import QueryExecutor
-from openbb_core.provider.registry_map import MapType, RegistryMap
-from openbb_core.provider.utils.helpers import to_snake_case
 
 TupleFieldType = Tuple[str, Optional[Type], Optional[Any]]
 
@@ -126,8 +125,8 @@ class ProviderInterface(metaclass=SingletonMeta):
         return self._map
 
     @property
-    def credentials(self) -> List[str]:
-        """Dictionary of required credentials by provider."""
+    def credentials(self) -> Dict[str, List[str]]:
+        """Map providers to credentials."""
         return self._registry_map.credentials
 
     @property
@@ -253,14 +252,22 @@ class ProviderInterface(metaclass=SingletonMeta):
         annotation = field.annotation
 
         additional_description = ""
+        choices: Dict = {}
         if extra := field.json_schema_extra:
-            providers = []
-            for p, v in extra.items():  # type: ignore[union-attr]
+            providers: List = []
+            for p, v in extra.items():  # type: ignore
                 if isinstance(v, dict) and v.get("multiple_items_allowed"):
                     providers.append(p)
+                    choices[p] = {"multiple_items_allowed": True, "choices": v.get("choices")}  # type: ignore
                 elif isinstance(v, list) and "multiple_items_allowed" in v:
                     # For backwards compatibility, before this was a list
                     providers.append(p)
+                    choices[p] = {"multiple_items_allowed": True, "choices": None}  # type: ignore
+                elif isinstance(v, dict) and v.get("choices"):
+                    choices[p] = {
+                        "multiple_items_allowed": False,
+                        "choices": v.get("choices"),
+                    }
 
             if providers:
                 if provider_name:
@@ -271,7 +278,6 @@ class ProviderInterface(metaclass=SingletonMeta):
                         + ", ".join(providers)  # type: ignore[arg-type]
                         + "."
                     )
-
         provider_field = (
             f"(provider: {provider_name})" if provider_name != "openbb" else ""
         )
@@ -290,6 +296,23 @@ class ProviderInterface(metaclass=SingletonMeta):
         else:
             default = field.default
 
+        if (
+            hasattr(annotation, "__name__")
+            and annotation.__name__ in ["Dict", "dict", "Data"]  # type: ignore
+            or field.kw_only is True
+        ):
+            return DataclassField(
+                new_name,
+                annotation,
+                Body(
+                    default=default,
+                    title=provider_name,
+                    description=description,
+                    alias=field.alias or None,
+                    json_schema_extra=choices,
+                ),
+            )
+
         if query:
             # We need to use query if we want the field description to show
             # up in the swagger, it's a fastapi limitation
@@ -301,7 +324,7 @@ class ProviderInterface(metaclass=SingletonMeta):
                     title=provider_name,
                     description=description,
                     alias=field.alias or None,
-                    json_schema_extra=getattr(field, "json_schema_extra", None),
+                    json_schema_extra=choices,
                 ),
             )
         if provider_name:
@@ -312,7 +335,7 @@ class ProviderInterface(metaclass=SingletonMeta):
                     default=default or None,
                     title=provider_name,
                     description=description,
-                    json_schema_extra=field.json_schema_extra,
+                    json_schema_extra=choices,
                 ),
             )
 
@@ -623,7 +646,7 @@ class ProviderInterface(metaclass=SingletonMeta):
                 setattr(data, "_provider", provider)
             meta = Discriminator(get_provider) if len(args) > 1 else None
             inner = SerializeAsAny[Annotated[Union[tuple(args)], meta]]  # type: ignore[misc,valid-type]
-            full = Union[tuple((o[inner] if o else inner) for o in outer)]  # type: ignore[valid-type]
+            full = Union[tuple((o[inner] if o else inner) for o in outer)]  # type: ignore[valid-type,misc]
             annotations[name] = create_model(
                 f"OBBject_{name}",
                 __base__=OBBject[full],  # type: ignore[valid-type]

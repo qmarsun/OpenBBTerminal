@@ -1,7 +1,7 @@
 # OpenBB Platform CLI
 
 [![Downloads](https://static.pepy.tech/badge/openbb)](https://pepy.tech/project/openbb)
-[![LatestRelease](https://badge.fury.io/py/openbb.svg)](https://github.com/OpenBB-finance/OpenBBTerminal)
+[![LatestRelease](https://badge.fury.io/py/openbb.svg)](https://github.com/OpenBB-finance/OpenBB)
 
 | OpenBB is committed to build the future of investment research by focusing on an open source infrastructure accessible to everyone, everywhere. |
 | :---------------------------------------------------------------------------------------------------------------------------------------------: |
@@ -12,13 +12,13 @@
 
 The OpenBB Platform CLI is a command line interface that wraps [OpenBB Platform](https://docs.openbb.co/platform).
 
-It offers a convenient way to interact with the OpenBB Platform and its extensions, as well as automate data collection via OpenBB Routine Scripts.
+It offers a convenient way to interact with the OpenBB Platform and its extensions, as well as automated data collection via OpenBB Routine Scripts.
 
 Find the most complete documentation, examples, and usage guides for the OpenBB Platform CLI [here](https://docs.openbb.co/cli).
 
 ## Installation
 
-The command below provides access to the all the available OpenBB extensions behind the OpenBB Platform, find the complete list [here](https://my.openbb.co/app/platform/extensions).
+The command below provides access to all the available OpenBB extensions behind the OpenBB Platform, find the complete list [here](https://my.openbb.co/app/platform/extensions).
 
 ```bash
 pip install openbb-cli
@@ -34,7 +34,7 @@ openbb
 
 Which should result in the following output:
 
-![image](https://github.com/OpenBB-finance/OpenBBTerminal/assets/48914296/f606bb6e-fa00-4fc8-bad2-8269bb4fc38e)
+![image](https://github.com/OpenBB-finance/OpenBB/assets/48914296/f606bb6e-fa00-4fc8-bad2-8269bb4fc38e)
 
 ## API keys
 

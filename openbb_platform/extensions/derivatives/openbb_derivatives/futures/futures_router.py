@@ -46,10 +46,9 @@ async def historical(
 @router.command(
     model="FuturesCurve",
     examples=[
-        APIEx(parameters={"symbol": "VX", "provider": "cboe"}),
+        APIEx(parameters={"symbol": "VX", "provider": "cboe", "date": "2024-06-25"}),
         APIEx(
-            description="Enter a date to get the term structure from a historical date.",
-            parameters={"symbol": "NG", "provider": "yfinance", "date": "2023-01-01"},
+            parameters={"symbol": "NG", "provider": "yfinance"},
         ),
     ],
 )
@@ -60,4 +59,39 @@ async def curve(
     extra_params: ExtraParams,
 ) -> OBBject:
     """Futures Term Structure, current or historical."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="FuturesInstruments",
+    examples=[
+        APIEx(parameters={"provider": "deribit"}),
+    ],
+)
+async def instruments(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get reference data for available futures instruments by provider."""
+    return await OBBject.from_query(Query(**locals()))
+
+
+@router.command(
+    model="FuturesInfo",
+    examples=[
+        APIEx(parameters={"provider": "deribit", "symbol": "BTC"}),
+        APIEx(parameters={"provider": "deribit", "symbol": "SOLUSDC"}),
+        APIEx(parameters={"provider": "deribit", "symbol": "SOL_USDC-PERPETUAL"}),
+        APIEx(parameters={"provider": "deribit", "symbol": "BTC,ETH"}),
+    ],
+)
+async def info(
+    cc: CommandContext,
+    provider_choices: ProviderChoices,
+    standard_params: StandardParams,
+    extra_params: ExtraParams,
+) -> OBBject:
+    """Get current trading statistics by futures contract symbol."""
     return await OBBject.from_query(Query(**locals()))

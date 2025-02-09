@@ -12,6 +12,7 @@ from openbb_core.provider.standard_models.income_statement import (
     IncomeStatementData,
     IncomeStatementQueryParams,
 )
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_fmp.utils.helpers import get_data_many
 from pydantic import Field, model_validator
 
@@ -22,7 +23,16 @@ class FMPIncomeStatementQueryParams(IncomeStatementQueryParams):
     Source: https://financialmodelingprep.com/developer/docs/#Income-Statement
     """
 
-    period: Optional[Literal["annual", "quarter"]] = Field(default="annual")
+    __json_schema_extra__ = {
+        "period": {
+            "choices": ["annual", "quarter"],
+        }
+    }
+
+    period: Literal["annual", "quarter"] = Field(
+        default="annual",
+        description=QUERY_DESCRIPTIONS.get("period", ""),
+    )
 
 
 class FMPIncomeStatementData(IncomeStatementData):
@@ -94,6 +104,7 @@ class FMPIncomeStatementData(IncomeStatementData):
     gross_profit_margin: Optional[float] = Field(
         default=None,
         description="Gross profit margin.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     general_and_admin_expense: Optional[float] = Field(
         default=None,
@@ -142,6 +153,7 @@ class FMPIncomeStatementData(IncomeStatementData):
     ebitda_margin: Optional[float] = Field(
         default=None,
         description="EBITDA margin.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     total_operating_income: Optional[float] = Field(
         default=None,
@@ -150,6 +162,7 @@ class FMPIncomeStatementData(IncomeStatementData):
     operating_income_margin: Optional[float] = Field(
         default=None,
         description="Operating income margin.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     total_other_income_expenses: Optional[float] = Field(
         default=None,
@@ -162,6 +175,7 @@ class FMPIncomeStatementData(IncomeStatementData):
     pre_tax_income_margin: Optional[float] = Field(
         default=None,
         description="Pre-tax income margin.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     income_tax_expense: Optional[float] = Field(
         default=None,
@@ -174,6 +188,7 @@ class FMPIncomeStatementData(IncomeStatementData):
     net_income_margin: Optional[float] = Field(
         default=None,
         description="Net income margin.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     basic_earnings_per_share: Optional[float] = Field(
         default=None,

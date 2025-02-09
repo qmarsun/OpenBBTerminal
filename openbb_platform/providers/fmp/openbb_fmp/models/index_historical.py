@@ -33,7 +33,10 @@ class FMPIndexHistoricalQueryParams(IndexHistoricalQueryParams):
     """
 
     __alias_dict__ = {"start_date": "from", "end_date": "to"}
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "interval": {"choices": ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]},
+    }
 
     interval: Literal["1m", "5m", "15m", "30m", "1h", "4h", "1d"] = Field(
         default="1d", description=QUERY_DESCRIPTIONS.get("interval", "")
@@ -42,6 +45,10 @@ class FMPIndexHistoricalQueryParams(IndexHistoricalQueryParams):
 
 class FMPIndexHistoricalData(IndexHistoricalData):
     """FMP Index Historical Data."""
+
+    __alias_dict__ = {
+        "change_percent": "changeOverTime",
+    }
 
     vwap: Optional[float] = Field(
         default=None, description=DATA_DESCRIPTIONS.get("vwap", "")
@@ -53,7 +60,6 @@ class FMPIndexHistoricalData(IndexHistoricalData):
     change_percent: Optional[float] = Field(
         default=None,
         description="Change in the price from the previous close, as a normalized percent.",
-        alias="changeOverTime",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
 

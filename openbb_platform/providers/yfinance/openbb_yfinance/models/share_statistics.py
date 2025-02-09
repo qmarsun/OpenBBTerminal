@@ -1,13 +1,13 @@
 """YFinance Share Statistics Model."""
 
 # pylint: disable=unused-argument
-import asyncio
-import warnings
+
 from datetime import (
     date as dateType,
     datetime,
 )
 from typing import Any, Dict, List, Optional
+from warnings import warn
 
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.share_statistics import (
@@ -15,9 +15,6 @@ from openbb_core.provider.standard_models.share_statistics import (
     ShareStatisticsQueryParams,
 )
 from pydantic import Field, field_validator
-from yfinance import Ticker
-
-_warn = warnings.warn
 
 
 class YFinanceShareStatisticsQueryParams(ShareStatisticsQueryParams):
@@ -33,62 +30,62 @@ class YFinanceShareStatisticsData(ShareStatisticsData):
         "outstanding_shares": "sharesOutstanding",
         "float_shares": "floatShares",
         "date": "dateShortInterest",
+        "implied_shares_outstanding": "impliedSharesOutstanding",
+        "short_interest": "sharesShort",
+        "short_percent_of_float": "shortPercentOfFloat",
+        "days_to_cover": "shortRatio",
+        "short_interest_prev_month": "sharesShortPriorMonth",
+        "short_interest_prev_date": "sharesShortPreviousMonthDate",
+        "insider_ownership": "heldPercentInsiders",
+        "institution_ownership": "heldPercentInstitutions",
+        "institution_float_ownership": "institutionsFloatPercentHeld",
+        "institutions_count": "institutionsCount",
     }
 
     implied_shares_outstanding: Optional[int] = Field(
         default=None,
         description="Implied Shares Outstanding of common equity,"
         + " assuming the conversion of all convertible subsidiary equity into common.",
-        alias="impliedSharesOutstanding",
     )
     short_interest: Optional[int] = Field(
         default=None,
         description="Number of shares that are reported short.",
-        alias="sharesShort",
     )
     short_percent_of_float: Optional[float] = Field(
         default=None,
         description="Percentage of shares that are reported short, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="shortPercentOfFloat",
     )
     days_to_cover: Optional[float] = Field(
         default=None,
         description="Number of days to repurchase the shares as a ratio of average daily volume",
-        alias="shortRatio",
     )
     short_interest_prev_month: Optional[int] = Field(
         default=None,
         description="Number of shares that were reported short in the previous month.",
-        alias="sharesShortPriorMonth",
     )
     short_interest_prev_date: Optional[dateType] = Field(
         default=None,
         description="Date of the previous month's report.",
-        alias="sharesShortPreviousMonthDate",
     )
     insider_ownership: Optional[float] = Field(
         default=None,
         description="Percentage of shares held by insiders, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="heldPercentInsiders",
     )
     institution_ownership: Optional[float] = Field(
         default=None,
         description="Percentage of shares held by institutions, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="heldPercentInstitutions",
     )
     institution_float_ownership: Optional[float] = Field(
         default=None,
         description="Percentage of float held by institutions, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="institutionsFloatPercentHeld",
     )
     institutions_count: Optional[int] = Field(
         default=None,
         description="Number of institutions holding shares.",
-        alias="institutionsCount",
     )
 
     @field_validator(
@@ -117,6 +114,13 @@ class YFinanceShareStatisticsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data from YFinance."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_core.app.model.abstract.error import OpenBBError
+        from openbb_core.provider.utils.errors import EmptyDataError
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from yfinance import Ticker
+
         symbols = query.symbol.split(",")
         results = []
         fields = [
@@ -135,19 +139,27 @@ class YFinanceShareStatisticsFetcher(
             "institutionsFloatPercentHeld",
             "institutionsCount",
         ]
+        session = get_requests_session()
+        messages: list = []
 
         async def get_one(symbol):
             """Get the data for one ticker symbol."""
-            result = {}
-            ticker = {}
+            result: dict = {}
+            ticker: dict = {}
             try:
-                _ticker = Ticker(symbol)
+                _ticker = Ticker(
+                    symbol,
+                    session=session,
+                    proxy=session.proxies if session.proxies else None,
+                )
                 ticker = _ticker.get_info()
                 major_holders = _ticker.get_major_holders(as_dict=True).get("Value")
                 if major_holders:
                     ticker.update(major_holders)  # type: ignore
             except Exception as e:
-                _warn(f"Error getting data for {symbol}: {e}")
+                messages.append(
+                    f"Error getting data for {symbol} -> {e.__class__.__name__}: {e}"
+                )
             if ticker:
                 for field in fields:
                     if field in ticker:
@@ -158,6 +170,16 @@ class YFinanceShareStatisticsFetcher(
         tasks = [get_one(symbol) for symbol in symbols]
 
         await asyncio.gather(*tasks)
+
+        if not results and messages:
+            raise OpenBBError("\n".join(messages))
+
+        if not results and not messages:
+            raise EmptyDataError("No data was returned for the given symbol(s).")
+
+        if results and messages:
+            for message in messages:
+                warn(message)
 
         return results
 

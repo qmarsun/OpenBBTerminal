@@ -15,6 +15,7 @@ from typing_extensions import Annotated, deprecated
 
 class ROUTER_fixedincome_government(Container):
     """/fixedincome/government
+    tips_yields
     treasury_rates
     us_yield_curve
     yield_curve
@@ -22,6 +23,126 @@ class ROUTER_fixedincome_government(Container):
 
     def __repr__(self) -> str:
         return self.__doc__ or ""
+
+    @exception_handler
+    @validate
+    def tips_yields(
+        self,
+        start_date: Annotated[
+            Union[datetime.date, None, str],
+            OpenBBField(description="Start date of the data, in YYYY-MM-DD format."),
+        ] = None,
+        end_date: Annotated[
+            Union[datetime.date, None, str],
+            OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
+        ] = None,
+        provider: Annotated[
+            Optional[Literal["fred"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
+            ),
+        ] = None,
+        **kwargs
+    ) -> OBBject:
+        """Get current Treasury inflation-protected securities yields.
+
+        Parameters
+        ----------
+        start_date : Union[date, None, str]
+            Start date of the data, in YYYY-MM-DD format.
+        end_date : Union[date, None, str]
+            End date of the data, in YYYY-MM-DD format.
+        provider : Optional[Literal['fred']]
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
+        maturity : Optional[Literal[5, 10, 20, 30]]
+            The maturity of the security in years - 5, 10, 20, 30 - defaults to all. Note that the maturity is the tenor of the security, not the time to maturity. (provider: fred)
+        frequency : Optional[Literal['a', 'q', 'm', 'w', 'd', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']]
+            Frequency aggregation to convert high frequency data to lower frequency.
+                    None = No change
+                    a = Annual
+                    q = Quarterly
+                    m = Monthly
+                    w = Weekly
+                    d = Daily
+                    wef = Weekly, Ending Friday
+                    weth = Weekly, Ending Thursday
+                    wew = Weekly, Ending Wednesday
+                    wetu = Weekly, Ending Tuesday
+                    wem = Weekly, Ending Monday
+                    wesu = Weekly, Ending Sunday
+                    wesa = Weekly, Ending Saturday
+                    bwew = Biweekly, Ending Wednesday
+                    bwem = Biweekly, Ending Monday
+                 (provider: fred)
+        aggregation_method : Optional[Literal['avg', 'sum', 'eop']]
+            A key that indicates the aggregation method used for frequency aggregation.
+                    avg = Average
+                    sum = Sum
+                    eop = End of Period
+                 (provider: fred)
+        transform : Optional[Literal['chg', 'ch1', 'pch', 'pc1', 'pca', 'cch', 'cca']]
+            Transformation type
+                    None = No transformation
+                    chg = Change
+                    ch1 = Change from Year Ago
+                    pch = Percent Change
+                    pc1 = Percent Change from Year Ago
+                    pca = Compounded Annual Rate of Change
+                    cch = Continuously Compounded Rate of Change
+                    cca = Continuously Compounded Annual Rate of Change
+                 (provider: fred)
+
+        Returns
+        -------
+        OBBject
+            results : List[TipsYields]
+                Serializable results.
+            provider : Optional[Literal['fred']]
+                Provider name.
+            warnings : Optional[List[Warning_]]
+                List of warnings.
+            chart : Optional[Chart]
+                Chart object.
+            extra : Dict[str, Any]
+                Extra info.
+
+        TipsYields
+        ----------
+        date : date
+            The date of the data.
+        symbol : Optional[str]
+            Symbol representing the entity requested in the data.
+        due : Optional[date]
+            The due date (maturation date) of the security.
+        name : Optional[str]
+            The name of the security.
+        value : Optional[float]
+            The yield value.
+
+        Examples
+        --------
+        >>> from openbb import obb
+        >>> obb.fixedincome.government.tips_yields(provider='fred')
+        >>> obb.fixedincome.government.tips_yields(maturity=10, provider='fred')
+        """  # noqa: E501
+
+        return self._run(
+            "/fixedincome/government/tips_yields",
+            **filter_inputs(
+                provider_choices={
+                    "provider": self._get_provider(
+                        provider,
+                        "fixedincome.government.tips_yields",
+                        ("fred",),
+                    )
+                },
+                standard_params={
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+                extra_params=kwargs,
+            )
+        )
 
     @exception_handler
     @validate
@@ -38,7 +159,7 @@ class ROUTER_fixedincome_government(Container):
         provider: Annotated[
             Optional[Literal["federal_reserve", "fmp"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'federal_reserve' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: federal_reserve, fmp."
             ),
         ] = None,
         **kwargs
@@ -47,14 +168,12 @@ class ROUTER_fixedincome_government(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['federal_reserve', 'fmp']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'federal_reserve' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: federal_reserve, fmp.
 
         Returns
         -------
@@ -113,7 +232,7 @@ class ROUTER_fixedincome_government(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/government/treasury_rates",
+                        "fixedincome.government.treasury_rates",
                         ("federal_reserve", "fmp"),
                     )
                 },
@@ -145,7 +264,7 @@ class ROUTER_fixedincome_government(Container):
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -154,14 +273,12 @@ class ROUTER_fixedincome_government(Container):
 
         Parameters
         ----------
-        date : Union[datetime.date, None, str]
+        date : Union[date, None, str]
             A specific date to get data for. Defaults to the most recent FRED entry.
         inflation_adjusted : Optional[bool]
             Get inflation adjusted rates.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
 
         Returns
         -------
@@ -204,7 +321,7 @@ class ROUTER_fixedincome_government(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/government/us_yield_curve",
+                        "fixedincome.government.us_yield_curve",
                         ("fred",),
                     )
                 },
@@ -221,7 +338,7 @@ class ROUTER_fixedincome_government(Container):
     def yield_curve(
         self,
         date: Annotated[
-            Union[str, None, List[Optional[str]]],
+            Union[datetime.date, str, None, List[Union[datetime.date, str, None]]],
             OpenBBField(
                 description="A specific date to get data for. By default is the current data. Multiple comma separated items allowed for provider(s): econdb, federal_reserve, fmp, fred."
             ),
@@ -229,7 +346,7 @@ class ROUTER_fixedincome_government(Container):
         provider: Annotated[
             Optional[Literal["econdb", "federal_reserve", "fmp", "fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'econdb' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: econdb, federal_reserve, fmp, fred."
             ),
         ] = None,
         **kwargs
@@ -238,17 +355,15 @@ class ROUTER_fixedincome_government(Container):
 
         Parameters
         ----------
-        date : Union[str, None, List[Optional[str]]]
+        date : Union[date, str, None, List[Union[date, str, None]]]
             A specific date to get data for. By default is the current data. Multiple comma separated items allowed for provider(s): econdb, federal_reserve, fmp, fred.
         provider : Optional[Literal['econdb', 'federal_reserve', 'fmp', 'fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'econdb' if there is
-            no default.
-        country : Literal['australia', 'canada', 'china', 'hong_kong', 'india', 'japan', 'mexico', 'new_zealand', 'russia', 'saudi_arabia', 'singapore', 'south_africa', 'south_korea', 'taiwan', 'thailand', 'united_kingdom', 'united_states']
-            The country to get data. New Zealand, Mexico, Singapore, and Thailand have only monthly data. The nearest date to the requested one will be used. (provider: econdb)
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: econdb, federal_reserve, fmp, fred.
+        country : str
+            The country to get data. New Zealand, Mexico, Singapore, and Thailand have only monthly data. The nearest date to the requested one will be used. Multiple comma separated items allowed. (provider: econdb)
         use_cache : bool
             If true, cache the request for four hours. (provider: econdb)
-        yield_curve_type : Literal['nominal', 'real', 'breakeven', 'corporate_spot', 'corporate_par']
+        yield_curve_type : Literal['nominal', 'real', 'breakeven', 'treasury_minus_fed_funds', 'corporate_spot', 'corporate_par']
             Yield curve type. Nominal and Real Rates are available daily, others are monthly. The closest date to the requested date will be returned. (provider: fred)
 
         Returns
@@ -271,8 +386,6 @@ class ROUTER_fixedincome_government(Container):
             The date of the data.
         maturity : str
             Maturity length of the security.
-        rate : float
-            The yield as a normalized percent (0.05 is 5%)
 
         Examples
         --------
@@ -289,7 +402,7 @@ class ROUTER_fixedincome_government(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/government/yield_curve",
+                        "fixedincome.government.yield_curve",
                         ("econdb", "federal_reserve", "fmp", "fred"),
                     )
                 },
@@ -299,11 +412,41 @@ class ROUTER_fixedincome_government(Container):
                 extra_params=kwargs,
                 info={
                     "date": {
-                        "econdb": ["multiple_items_allowed"],
-                        "federal_reserve": {"multiple_items_allowed": True},
-                        "fmp": {"multiple_items_allowed": True},
-                        "fred": {"multiple_items_allowed": True},
-                    }
+                        "econdb": {"multiple_items_allowed": True, "choices": None},
+                        "federal_reserve": {
+                            "multiple_items_allowed": True,
+                            "choices": None,
+                        },
+                        "fmp": {"multiple_items_allowed": True, "choices": None},
+                        "fred": {"multiple_items_allowed": True, "choices": None},
+                    },
+                    "country": {
+                        "econdb": {
+                            "multiple_items_allowed": True,
+                            "choices": [
+                                "australia",
+                                "canada",
+                                "china",
+                                "ecb_instantaneous_forward",
+                                "ecb_par_yield",
+                                "ecb_spot_rate",
+                                "hong_kong",
+                                "india",
+                                "japan",
+                                "mexico",
+                                "new_zealand",
+                                "russia",
+                                "saudi_arabia",
+                                "singapore",
+                                "south_africa",
+                                "south_korea",
+                                "taiwan",
+                                "thailand",
+                                "united_kingdom",
+                                "united_states",
+                            ],
+                        }
+                    },
                 },
             )
         )

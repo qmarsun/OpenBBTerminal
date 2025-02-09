@@ -5,10 +5,9 @@ from datetime import (
 )
 from typing import List, Optional, Union
 
-from pydantic import Field
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
+from pydantic import Field
 
 
 class BondPricesQueryParams(QueryParams):
@@ -87,22 +86,27 @@ class BondPricesData(Data):
     coupon_rate: Optional[float] = Field(
         default=None,
         description="Coupon rate of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     price: Optional[float] = Field(
         default=None,
         description="Price of the bond.",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     current_yield: Optional[float] = Field(
         default=None,
         description="Current yield of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     ytm: Optional[float] = Field(
         default=None,
         description="Yield to maturity of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     ytw: Optional[float] = Field(
         default=None,
         description="Yield to worst of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     duration: Optional[float] = Field(
         default=None,

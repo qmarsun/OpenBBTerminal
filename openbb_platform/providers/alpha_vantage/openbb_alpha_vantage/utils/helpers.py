@@ -1,11 +1,10 @@
 """Alpha Vantage Helpers Module."""
 
-import re
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
-import numpy as np
-import pandas as pd
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
 INTERVALS_DICT = {
     "m": "TIME_SERIES_INTRADAY",
@@ -29,6 +28,9 @@ def get_interval(value: str) -> str:
 
 def extract_key_name(key):
     """Extract the alphabetical part of the key using regex."""
+    # pylint: disable=import-outside-toplevel
+    import re
+
     match = re.search(r"\d+\.\s+([a-z]+)", key, re.I)
     return match.group(1) if match else key
 
@@ -47,12 +49,14 @@ def filter_by_dates(
     )
 
 
-def calculate_adjusted_prices(df: pd.DataFrame, column: str, dividends: bool = False):
+def calculate_adjusted_prices(
+    df: "DataFrame", column: str, dividends: bool = False
+) -> "DataFrame":
     """Calculate the split-adjusted prices, or split and dividend adjusted prices.
 
     Parameters
     ----------
-    df: pd.DataFrame
+    df: DataFrame
         DataFrame with unadjusted OHLCV values + split_factor + dividend
     column: str
         The column name to adjust.
@@ -61,25 +65,32 @@ def calculate_adjusted_prices(df: pd.DataFrame, column: str, dividends: bool = F
 
     Returns
     -------
-    pd.DataFrame
+    DataFrame
         DataFrame with adjusted prices.
     """
+    # pylint: disable=import-outside-toplevel
+    from numpy import zeros
+
     df = df.copy()
     adj_column = "adj_" + column
 
     # Reverse the DataFrame order, sorting by date in descending order
     df.sort_index(ascending=False, inplace=True)
 
-    price_col = df[column].values
-    split_col = df["volume_factor"] if column == "volume" else df["split_factor"].values
-    dividend_col = df["dividend"].values if dividends else np.zeros(len(price_col))
-    adj_price_col = np.zeros(len(df.index))
-    adj_price_col[0] = price_col[0]
+    price_col = df[column]
+    split_col = df["volume_factor"] if column == "volume" else df["split_factor"]
+    dividend_col = df["dividend"] if dividends else zeros(len(price_col))
+    adj_price_col = zeros(len(df.index))
+    adj_price_col[0] = price_col.iloc[0]
 
     for i in range(1, len(price_col)):
         adj_price_col[i] = adj_price_col[i - 1] + adj_price_col[i - 1] * (
-            ((price_col[i] * split_col[i - 1]) - price_col[i - 1] - dividend_col[i - 1])
-            / price_col[i - 1]
+            (
+                (price_col.iloc[i] * split_col.iloc[i - 1])
+                - price_col.iloc[i - 1]
+                - dividend_col[i - 1]
+            )
+            / price_col.iloc[i - 1]
         )
     df[adj_column] = adj_price_col
 

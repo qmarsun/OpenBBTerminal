@@ -7,7 +7,7 @@ from datetime import (
     date as dateType,
     datetime,
 )
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from warnings import warn
 
 from openbb_core.provider.abstract.data import ForceInt
@@ -16,6 +16,7 @@ from openbb_core.provider.standard_models.key_metrics import (
     KeyMetricsData,
     KeyMetricsQueryParams,
 )
+from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
 from openbb_core.provider.utils.helpers import amake_request
 from openbb_fmp.utils.helpers import response_callback
@@ -28,9 +29,18 @@ class FMPKeyMetricsQueryParams(KeyMetricsQueryParams):
     Source: https://site.financialmodelingprep.com/developer/docs/company-key-metrics-api/
     """
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "period": {
+            "choices": ["annual", "quarter"],
+        },
+    }
 
-    with_ttm: Optional[bool] = Field(
+    period: Literal["annual", "quarter"] = Field(
+        default="annual",
+        description=QUERY_DESCRIPTIONS.get("period", ""),
+    )
+    with_ttm: bool = Field(
         default=False, description="Include trailing twelve months (TTM) data."
     )
 
@@ -41,9 +51,19 @@ class FMPKeyMetricsData(KeyMetricsData):
     __alias_dict__ = {
         "dividend_yield": "dividend_yiel",
         "market_cap": "marketCap",
-        "research_and_development_to_revenue": "researchAndDevelopementToRevenue",
+        "research_and_development_to_revenue": "researchAndDdevelopementToRevenue",
         "fiscal_period": "period",
         "period_ending": "date",
+        "price_to_sales": "priceToSalesRatio",
+        "price_to_operating_cash_flow": "pocfratio",
+        "price_to_free_cash_flow": "pfcfRatio",
+        "price_to_book": "pbRatio",
+        "price_to_tangible_book": "ptbRatio",
+        "ev_to_sales": "evToSales",
+        "ev_to_ebitda": "enterpriseValueOverEBITDA",
+        "net_debt_to_ebitda": "netDebtToEBITDA",
+        "return_on_equity": "roe",
+        "return_on_invested_capital": "roic",
     }
     period_ending: dateType = Field(description="Period ending date.")
     fiscal_period: str = Field(description="Period of the data.")
@@ -81,37 +101,30 @@ class FMPKeyMetricsData(KeyMetricsData):
     price_to_sales: Optional[float] = Field(
         default=None,
         description="Price-to-sales ratio",
-        alias="priceToSalesRatio",
     )
     price_to_operating_cash_flow: Optional[float] = Field(
         default=None,
         description="Price-to-operating cash flow ratio",
-        alias="pocfratio",
     )
     price_to_free_cash_flow: Optional[float] = Field(
         default=None,
         description="Price-to-free cash flow ratio",
-        alias="pfcfRatio",
     )
     price_to_book: Optional[float] = Field(
         default=None,
         description="Price-to-book ratio",
-        alias="pbRatio",
     )
     price_to_tangible_book: Optional[float] = Field(
         default=None,
         description="Price-to-tangible book ratio",
-        alias="ptbRatio",
     )
     ev_to_sales: Optional[float] = Field(
         default=None,
         description="Enterprise value-to-sales ratio",
-        alias="evToSales",
     )
     ev_to_ebitda: Optional[float] = Field(
         default=None,
         description="Enterprise value-to-EBITDA ratio",
-        alias="enterpriseValueOverEBITDA",
     )
     ev_to_operating_cash_flow: Optional[float] = Field(
         default=None, description="Enterprise value-to-operating cash flow ratio"
@@ -141,7 +154,6 @@ class FMPKeyMetricsData(KeyMetricsData):
     net_debt_to_ebitda: Optional[float] = Field(
         default=None,
         description="Net debt-to-EBITDA ratio",
-        alias="netDebtToEBITDA",
     )
     current_ratio: Optional[float] = Field(default=None, description="Current ratio")
     interest_coverage: Optional[float] = Field(
@@ -156,7 +168,7 @@ class FMPKeyMetricsData(KeyMetricsData):
     research_and_development_to_revenue: Optional[float] = Field(
         default=None,
         description="Research and development expenses-to-revenue ratio",
-        alias="researchAndDdevelopementToRevenue",
+        alias="researchAndDevelopementToRevenue",
     )
     intangibles_to_total_assets: Optional[float] = Field(
         default=None, description="Intangibles-to-total assets ratio"
@@ -219,13 +231,11 @@ class FMPKeyMetricsData(KeyMetricsData):
         default=None,
         description="Return on equity",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="roe",
     )
     return_on_invested_capital: Optional[float] = Field(
         default=None,
         description="Return on invested capital",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
-        alias="roic",
     )
     return_on_tangible_assets: Optional[float] = Field(
         default=None,

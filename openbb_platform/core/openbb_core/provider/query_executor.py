@@ -2,12 +2,11 @@
 
 from typing import Any, Dict, Optional, Type
 
-from pydantic import SecretStr
-
 from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.abstract.provider import Provider
 from openbb_core.provider.registry import Registry, RegistryLoader
+from pydantic import SecretStr
 
 
 class QueryExecutor:
@@ -55,7 +54,10 @@ class QueryExecutor:
                     if require_credentials:
                         website = provider.website or ""
                         extra_msg = f" Check {website} to get it." if website else ""
-                        raise OpenBBError(f"Missing credential '{c}'.{extra_msg}")
+                        raise OpenBBError(
+                            f"Missing credential '{c}'.{extra_msg} Known more about how to set provider "
+                            "credentials at https://docs.openbb.co/platform/getting_started/api_keys."
+                        )
                 else:
                     filtered_credentials[c] = secret
 

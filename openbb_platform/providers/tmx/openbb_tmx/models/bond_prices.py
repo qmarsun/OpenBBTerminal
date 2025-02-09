@@ -4,18 +4,18 @@
 from datetime import (
     date as dateType,
     datetime,
-    timedelta,
 )
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.bond_reference import (
     BondReferenceData,
     BondReferenceQueryParams,
 )
-from openbb_tmx.utils.helpers import get_all_bonds
-from pandas import DataFrame
 from pydantic import Field, field_validator
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
 
 class TmxBondPricesQueryParams(BondReferenceQueryParams):
@@ -55,6 +55,15 @@ class TmxBondPricesData(BondReferenceData):
 
     __alias_dict__ = {
         "coupon_rate": "couponRate",
+        "ytm": "lastYield",
+        "price": "lastPrice",
+        "highest_price": "highestPrice",
+        "lowest_price": "lowestPrice",
+        "total_trades": "totalTrades",
+        "last_traded_date": "lastTradedDate",
+        "maturity_date": "maturityDate",
+        "issue_date": "originalIssueDate",
+        "issuer_name": "issuer",
     }
 
     ytm: Optional[float] = Field(
@@ -64,48 +73,42 @@ class TmxBondPricesData(BondReferenceData):
         + " the current market price, par value, coupon rate and time to maturity. It is assumed that all"
         + " coupons are reinvested at the same rate."
         + " Values are returned as a normalized percent.",
-        alias="lastYield",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     price: Optional[float] = Field(
         default=None,
         description="The last price for the bond.",
-        alias="lastPrice",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     highest_price: Optional[float] = Field(
         default=None,
         description="The highest price for the bond on the last traded date.",
-        alias="highestPrice",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     lowest_price: Optional[float] = Field(
         default=None,
         description="The lowest price for the bond on the last traded date.",
-        alias="lowestPrice",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     total_trades: Optional[int] = Field(
         default=None,
         description="Total number of trades on the last traded date.",
-        alias="totalTrades",
     )
     last_traded_date: Optional[dateType] = Field(
         default=None,
         description="Last traded date of the bond.",
-        alias="lastTradedDate",
     )
     maturity_date: Optional[dateType] = Field(
         default=None,
         description="Maturity date of the bond.",
-        alias="maturityDate",
     )
     issue_date: Optional[dateType] = Field(
         default=None,
         description="Issue date of the bond. This is the date when the bond first accrues interest.",
-        alias="originalIssueDate",
     )
     issuer_name: Optional[str] = Field(
         default=None,
         description="Name of the issuing entity.",
-        alias="issuer",
     )
 
     @field_validator(
@@ -131,6 +134,9 @@ class TmxBondPricesFetcher(
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> TmxBondPricesQueryParams:
         """Transform query params."""
+        # pylint: disable=import-outside-toplevel
+        from datetime import timedelta
+
         transformed_params = params.copy()
         now = datetime.now()
         if now.date().weekday() > 4:
@@ -146,15 +152,18 @@ class TmxBondPricesFetcher(
         query: TmxBondPricesQueryParams,
         credentials: Optional[Dict[str, str]],
         **kwargs: Any,
-    ) -> DataFrame:
+    ) -> "DataFrame":
         """Get the raw data containing all bond data."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.utils.helpers import get_all_bonds
+
         bonds = await get_all_bonds(use_cache=query.use_cache)
         return bonds
 
     @staticmethod
     def transform_data(
         query: TmxBondPricesQueryParams,
-        data: DataFrame,
+        data: "DataFrame",
         **kwargs: Any,
     ) -> List[TmxBondPricesData]:
         """Transform data."""

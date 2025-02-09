@@ -1,15 +1,14 @@
 """TMX ETF Search fetcher."""
 
 # pylint: disable=unused-argument
+
 from typing import Any, Dict, List, Literal, Optional
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_search import (
     EtfSearchData,
     EtfSearchQueryParams,
 )
-from openbb_tmx.utils.helpers import get_all_etfs
 from pydantic import Field, field_validator
 
 
@@ -51,15 +50,19 @@ class TmxEtfSearchQueryParams(EtfSearchQueryParams):
 class TmxEtfSearchData(EtfSearchData):
     """TMX ETF Search Data."""
 
+    __alias_dict__ = {
+        "issuer": "fund_family",
+        "avg_volume": "volume_avg_daily",
+        "avg_volume_30d": "volume_avg_30d",
+    }
+
     short_name: Optional[str] = Field(
         description="The short name of the ETF.", default=None
     )
     inception_date: Optional[str] = Field(
         description="The inception date of the ETF.", default=None
     )
-    issuer: Optional[str] = Field(
-        description="The issuer of the ETF.", alias="fund_family", default=None
-    )
+    issuer: Optional[str] = Field(description="The issuer of the ETF.", default=None)
     investment_style: Optional[str] = Field(
         description="The investment style of the ETF.", default=None
     )
@@ -142,12 +145,10 @@ class TmxEtfSearchData(EtfSearchData):
     )
     avg_volume: Optional[int] = Field(
         description="The average daily volume of the ETF.",
-        alias="volume_avg_daily",
         default=None,
     )
     avg_volume_30d: Optional[int] = Field(
         description="The 30-day average volume of the ETF.",
-        alias="volume_avg_30d",
         default=None,
     )
     aum: Optional[float] = Field(description="The AUM of the ETF.", default=None)
@@ -220,8 +221,11 @@ class TmxEtfSearchFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.utils.helpers import get_all_etfs
+        from pandas import DataFrame
 
-        etfs = pd.DataFrame(await get_all_etfs(use_cache=query.use_cache))
+        etfs = DataFrame(await get_all_etfs(use_cache=query.use_cache))
 
         if query.query:
             etfs = etfs[

@@ -2,13 +2,15 @@
 
 import datetime
 from typing import List, Literal, Optional, Union
+from warnings import simplefilter, warn
 
+from openbb_core.app.deprecation import OpenBBDeprecationWarning
 from openbb_core.app.model.field import OpenBBField
 from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.static.container import Container
 from openbb_core.app.static.utils.decorators import exception_handler, validate
 from openbb_core.app.static.utils.filters import filter_inputs
-from typing_extensions import Annotated
+from typing_extensions import Annotated, deprecated
 
 
 class ROUTER_fixedincome_corporate(Container):
@@ -35,21 +37,10 @@ class ROUTER_fixedincome_corporate(Container):
             Union[datetime.date, None, str],
             OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
         ] = None,
-        maturity: Annotated[
-            Literal["overnight", "7d", "15d", "30d", "60d", "90d"],
-            OpenBBField(description="The maturity."),
-        ] = "30d",
-        category: Annotated[
-            Literal["asset_backed", "financial", "nonfinancial"],
-            OpenBBField(description="The category."),
-        ] = "financial",
-        grade: Annotated[
-            Literal["aa", "a2_p2"], OpenBBField(description="The grade.")
-        ] = "aa",
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -64,20 +55,53 @@ class ROUTER_fixedincome_corporate(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
-        maturity : Literal['overnight', '7d', '15d', '30d', '60d', '90d']
-            The maturity.
-        category : Literal['asset_backed', 'financial', 'nonfinancial']
-            The category.
-        grade : Literal['aa', 'a2_p2']
-            The grade.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
+        maturity : Union[str, Literal['all', 'overnight', '7d', '15d', '30d', '60d', '90d']]
+            A target maturity. Multiple comma separated items allowed. (provider: fred)
+        category : Union[str, Literal['all', 'asset_backed', 'financial', 'nonfinancial', 'a2p2']]
+            The category of asset. Multiple comma separated items allowed. (provider: fred)
+        frequency : Optional[Literal['a', 'q', 'm', 'w', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem']]
+
+                Frequency aggregation to convert daily data to lower frequency.
+                    a = Annual
+                    q = Quarterly
+                    m = Monthly
+                    w = Weekly
+                    wef = Weekly, Ending Friday
+                    weth = Weekly, Ending Thursday
+                    wew = Weekly, Ending Wednesday
+                    wetu = Weekly, Ending Tuesday
+                    wem = Weekly, Ending Monday
+                    wesu = Weekly, Ending Sunday
+                    wesa = Weekly, Ending Saturday
+                    bwew = Biweekly, Ending Wednesday
+                    bwem = Biweekly, Ending Monday
+                 (provider: fred)
+        aggregation_method : Optional[Literal['avg', 'sum', 'eop']]
+
+                A key that indicates the aggregation method used for frequency aggregation.
+                    avg = Average
+                    sum = Sum
+                    eop = End of Period
+                 (provider: fred)
+        transform : Optional[Literal['chg', 'ch1', 'pch', 'pc1', 'pca', 'cch', 'cca', 'log']]
+
+                Transformation type
+                    None = No transformation
+                    chg = Change
+                    ch1 = Change from Year Ago
+                    pch = Percent Change
+                    pc1 = Percent Change from Year Ago
+                    pca = Compounded Annual Rate of Change
+                    cch = Continuously Compounded Rate of Change
+                    cca = Continuously Compounded Annual Rate of Change
+                    log = Natural Log
+                 (provider: fred)
 
         Returns
         -------
@@ -97,14 +121,22 @@ class ROUTER_fixedincome_corporate(Container):
         ---------------
         date : date
             The date of the data.
-        rate : Optional[float]
-            Commercial Paper Rate.
+        symbol : Optional[str]
+            Symbol representing the entity requested in the data.
+        maturity : str
+            Maturity length of the item.
+        rate : float
+            Interest rate.
+        title : Optional[str]
+            Title of the series.
+        asset_type : Optional[Literal['asset_backed', 'financial', 'nonfinancial', 'a2p2']]
+            The category of asset. (provider: fred)
 
         Examples
         --------
         >>> from openbb import obb
         >>> obb.fixedincome.corporate.commercial_paper(provider='fred')
-        >>> obb.fixedincome.corporate.commercial_paper(maturity='15d', provider='fred')
+        >>> obb.fixedincome.corporate.commercial_paper(category='all', maturity='15d', provider='fred')
         """  # noqa: E501
 
         return self._run(
@@ -113,18 +145,43 @@ class ROUTER_fixedincome_corporate(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/corporate/commercial_paper",
+                        "fixedincome.corporate.commercial_paper",
                         ("fred",),
                     )
                 },
                 standard_params={
                     "start_date": start_date,
                     "end_date": end_date,
-                    "maturity": maturity,
-                    "category": category,
-                    "grade": grade,
                 },
                 extra_params=kwargs,
+                info={
+                    "maturity": {
+                        "fred": {
+                            "multiple_items_allowed": True,
+                            "choices": [
+                                "all",
+                                "overnight",
+                                "7d",
+                                "15d",
+                                "30d",
+                                "60d",
+                                "90d",
+                            ],
+                        }
+                    },
+                    "category": {
+                        "fred": {
+                            "multiple_items_allowed": True,
+                            "choices": [
+                                "all",
+                                "asset_backed",
+                                "financial",
+                                "nonfinancial",
+                                "a2p2",
+                            ],
+                        }
+                    },
+                },
             )
         )
 
@@ -133,16 +190,15 @@ class ROUTER_fixedincome_corporate(Container):
     def hqm(
         self,
         date: Annotated[
-            Union[datetime.date, None, str],
-            OpenBBField(description="A specific date to get data for."),
+            Union[datetime.date, str, None, List[Union[datetime.date, str, None]]],
+            OpenBBField(
+                description="A specific date to get data for. Multiple comma separated items allowed for provider(s): fred."
+            ),
         ] = None,
-        yield_curve: Annotated[
-            Literal["spot", "par"], OpenBBField(description="The yield curve type.")
-        ] = "spot",
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -157,14 +213,12 @@ class ROUTER_fixedincome_corporate(Container):
 
         Parameters
         ----------
-        date : Union[datetime.date, None, str]
-            A specific date to get data for.
-        yield_curve : Literal['spot', 'par']
-            The yield curve type.
+        date : Union[date, str, None, List[Union[date, str, None]]]
+            A specific date to get data for. Multiple comma separated items allowed for provider(s): fred.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
+        yield_curve : Literal['spot', 'par']
+            The yield curve type. (provider: fred)
 
         Returns
         -------
@@ -184,14 +238,10 @@ class ROUTER_fixedincome_corporate(Container):
         ------------------------------
         date : date
             The date of the data.
-        rate : Optional[float]
-            HighQualityMarketCorporateBond Rate.
+        rate : float
+            Interest rate.
         maturity : str
             Maturity.
-        yield_curve : Literal['spot', 'par']
-            The yield curve type.
-        series_id : Optional[str]
-            FRED series id. (provider: fred)
 
         Examples
         --------
@@ -206,20 +256,26 @@ class ROUTER_fixedincome_corporate(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/corporate/hqm",
+                        "fixedincome.corporate.hqm",
                         ("fred",),
                     )
                 },
                 standard_params={
                     "date": date,
-                    "yield_curve": yield_curve,
                 },
                 extra_params=kwargs,
+                info={
+                    "date": {"fred": {"multiple_items_allowed": True, "choices": None}}
+                },
             )
         )
 
     @exception_handler
     @validate
+    @deprecated(
+        "This endpoint is deprecated; use `/fixedincome/bond_indices` instead. Deprecated in OpenBB Platform V4.2 to be removed in V4.5.",
+        category=OpenBBDeprecationWarning,
+    )
     def ice_bofa(
         self,
         start_date: Annotated[
@@ -237,7 +293,7 @@ class ROUTER_fixedincome_corporate(Container):
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -253,16 +309,14 @@ class ROUTER_fixedincome_corporate(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         index_type : Literal['yield', 'yield_to_worst', 'total_return', 'spread']
             The type of series.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
         category : Literal['all', 'duration', 'eur', 'usd']
             The type of category. (provider: fred)
         area : Literal['asia', 'emea', 'eu', 'ex_g10', 'latin_america', 'us']
@@ -300,13 +354,20 @@ class ROUTER_fixedincome_corporate(Container):
         >>> obb.fixedincome.corporate.ice_bofa(index_type='yield_to_worst', provider='fred')
         """  # noqa: E501
 
+        simplefilter("always", DeprecationWarning)
+        warn(
+            "This endpoint is deprecated; use `/fixedincome/bond_indices` instead. Deprecated in OpenBB Platform V4.2 to be removed in V4.5.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
         return self._run(
             "/fixedincome/corporate/ice_bofa",
             **filter_inputs(
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/corporate/ice_bofa",
+                        "fixedincome.corporate.ice_bofa",
                         ("fred",),
                     )
                 },
@@ -321,6 +382,10 @@ class ROUTER_fixedincome_corporate(Container):
 
     @exception_handler
     @validate
+    @deprecated(
+        "This endpoint is deprecated; use `/fixedincome/bond_indices` instead. Set `category` to `us` and `index` to `seasoned_corporate`. Deprecated in OpenBB Platform V4.2 to be removed in V4.5.",
+        category=OpenBBDeprecationWarning,
+    )
     def moody(
         self,
         start_date: Annotated[
@@ -337,7 +402,7 @@ class ROUTER_fixedincome_corporate(Container):
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -352,16 +417,14 @@ class ROUTER_fixedincome_corporate(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         index_type : Literal['aaa', 'baa']
             The type of series.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
         spread : Optional[Literal['treasury', 'fed_funds']]
             The type of spread. (provider: fred)
 
@@ -393,13 +456,20 @@ class ROUTER_fixedincome_corporate(Container):
         >>> obb.fixedincome.corporate.moody(index_type='baa', provider='fred')
         """  # noqa: E501
 
+        simplefilter("always", DeprecationWarning)
+        warn(
+            "This endpoint is deprecated; use `/fixedincome/bond_indices` instead. Set `category` to `us` and `index` to `seasoned_corporate`. Deprecated in OpenBB Platform V4.2 to be removed in V4.5.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
         return self._run(
             "/fixedincome/corporate/moody",
             **filter_inputs(
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/corporate/moody",
+                        "fixedincome.corporate.moody",
                         ("fred",),
                     )
                 },
@@ -433,14 +503,13 @@ class ROUTER_fixedincome_corporate(Container):
         category: Annotated[
             Union[str, List[str]],
             OpenBBField(
-                description="Rate category. Options: spot_rate, par_yield. Multiple comma separated items allowed for provider(s): fred.",
-                choices=["par_yield", "spot_rate"],
+                description="Rate category. Options: spot_rate, par_yield. Multiple comma separated items allowed for provider(s): fred."
             ),
         ] = "spot_rate",
         provider: Annotated[
             Optional[Literal["fred"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fred' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
         **kwargs
@@ -455,18 +524,16 @@ class ROUTER_fixedincome_corporate(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         maturity : Union[float, str, List[Union[float, str]]]
             Maturities in years. Multiple comma separated items allowed for provider(s): fred.
         category : Union[str, List[str]]
             Rate category. Options: spot_rate, par_yield. Multiple comma separated items allowed for provider(s): fred.
         provider : Optional[Literal['fred']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fred' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
 
         Returns
         -------
@@ -502,7 +569,7 @@ class ROUTER_fixedincome_corporate(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/corporate/spot_rates",
+                        "fixedincome.corporate.spot_rates",
                         ("fred",),
                     )
                 },
@@ -514,8 +581,15 @@ class ROUTER_fixedincome_corporate(Container):
                 },
                 extra_params=kwargs,
                 info={
-                    "maturity": {"fred": {"multiple_items_allowed": True}},
-                    "category": {"fred": {"multiple_items_allowed": True}},
+                    "maturity": {
+                        "fred": {"multiple_items_allowed": True, "choices": None}
+                    },
+                    "category": {
+                        "fred": {
+                            "multiple_items_allowed": True,
+                            "choices": ["par_yield", "spot_rate"],
+                        }
+                    },
                 },
             )
         )

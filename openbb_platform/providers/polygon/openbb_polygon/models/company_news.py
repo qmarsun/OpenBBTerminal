@@ -2,15 +2,14 @@
 
 # pylint: disable=unused-argument
 
-import asyncio
 from typing import Any, Dict, List, Literal, Optional
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.company_news import (
     CompanyNewsData,
     CompanyNewsQueryParams,
 )
-from openbb_core.provider.utils.helpers import amake_request, get_querystring
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -20,16 +19,27 @@ class PolygonCompanyNewsQueryParams(CompanyNewsQueryParams):
     Source: https://polygon.io/docs/stocks/get_v2_reference_news
     """
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "order": {"choices": ["asc", "desc"]},
+    }
     __alias_dict__ = {
         "symbol": "ticker",
         "start_date": "published_utc.gte",
         "end_date": "published_utc.lte",
     }
 
-    order: Optional[Literal["asc", "desc"]] = Field(
+    order: Literal["asc", "desc"] = Field(
         default="desc", description="Sort order of the articles."
     )
+
+    @field_validator("symbol", mode="before", check_fields=False)
+    @classmethod
+    def _symbol_mandatory(cls, v):
+        """Symbol mandatory validator."""
+        if not v:
+            raise OpenBBError("Required field missing -> symbol")
+        return v
 
 
 class PolygonPublisher(BaseModel):
@@ -81,7 +91,7 @@ class PolygonCompanyNewsFetcher(
         List[PolygonCompanyNewsData],
     ]
 ):
-    """Transform the query, extract and transform the data from the Polygon endpoints."""
+    """Polygon Company News Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> PolygonCompanyNewsQueryParams:
@@ -95,6 +105,13 @@ class PolygonCompanyNewsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract data."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_core.provider.utils.helpers import (
+            amake_request,
+            get_querystring,
+        )  # noqa
+
         api_key = credentials.get("polygon_api_key") if credentials else ""
 
         base_url = "https://api.polygon.io/v2/reference/news"

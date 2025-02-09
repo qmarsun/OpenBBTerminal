@@ -621,3 +621,141 @@ def test_charting_fixedincome_government_yield_curve(params, obb):
     assert len(result.results) > 0
     assert result.chart.content
     assert isinstance(result.chart.fig, OpenBBFigure)
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "yfinance",
+                "symbol": "ES",
+                "start_date": "2022-01-01",
+                "end_date": "2022-02-01",
+                "chart": True,
+            }
+        )
+    ],
+)
+@pytest.mark.integration
+def test_charting_derivatives_futures_historical(params, obb):
+    """Test chart derivatives futures historical."""
+    result = obb.derivatives.futures.historical(**params)
+    assert result
+    assert isinstance(result, OBBject)
+    assert len(result.results) > 0
+    assert result.chart.content
+    assert isinstance(result.chart.fig, OpenBBFigure)
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "yfinance",
+                "symbol": "ES",
+                "date": None,
+                "chart": True,
+            }
+        ),
+        (
+            {
+                "provider": "cboe",
+                "symbol": "VX",
+                "date": "2024-06-25",
+                "chart": True,
+            }
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_charting_derivatives_futures_curve(params, obb):
+    """Test chart derivatives futures curve."""
+    result = obb.derivatives.futures.curve(**params)
+    assert result
+    assert isinstance(result, OBBject)
+    assert len(result.results) > 0
+    assert result.chart.content
+    assert isinstance(result.chart.fig, OpenBBFigure)
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "fmp",
+                "symbol": "AAPL",
+                "start_date": "2024-01-01",
+                "end_date": "2024-06-30",
+                "chart": True,
+            }
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_charting_equity_historical_market_cap(params, obb):
+    """Test chart equity historical market cap."""
+    result = obb.equity.historical_market_cap(**params)
+    assert result
+    assert isinstance(result, OBBject)
+    assert len(result.results) > 0
+    assert result.chart.content
+    assert isinstance(result.chart.fig, OpenBBFigure)
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "bls",
+                "symbol": "APUS49D74714,APUS49D74715,APUS49D74716",
+                "start_date": "2014-01-01",
+                "end_date": "2024-07-01",
+                "chart": True,
+            }
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_charting_economy_survey_bls_series(params, obb):
+    """Test chart economy survey bls series."""
+    result = obb.economy.survey.bls_series(**params)
+    assert result
+    assert isinstance(result, OBBject)
+    assert len(result.results) > 0
+    assert result.chart.content
+    assert isinstance(result.chart.fig, OpenBBFigure)
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "data": "",
+                "method": "pearson",
+                "chart": True,
+            }
+        )
+    ],
+)
+@pytest.mark.integration
+def test_charting_econometrics_correlation_matrix(params, obb):
+    """Test chart econometrics correlation matrix."""
+
+    symbols = "XRT,XLB,XLI,XLH,XLC,XLY,XLU,XLK".split(",")
+    params["data"] = (
+        obb.equity.price.historical(symbol=symbols, provider="yfinance")
+        .to_df()
+        .pivot(columns="symbol", values="close")
+        .filter(items=symbols, axis=1)
+    )
+    result = obb.econometrics.correlation_matrix(**params)
+    assert result
+    assert isinstance(result, OBBject)
+    assert len(result.results) > 0
+    assert result.chart.content
+    assert isinstance(result.chart.fig, OpenBBFigure)

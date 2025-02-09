@@ -2,11 +2,11 @@
 
 # pylint: disable = unused-argument
 
-import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_historical import (
     EquityHistoricalData,
@@ -16,17 +16,17 @@ from openbb_core.provider.utils.descriptions import (
     QUERY_DESCRIPTIONS,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_core.provider.utils.helpers import amake_request, safe_fromtimestamp
 from openbb_tradier.utils.constants import INTERVALS_DICT
-from pandas import to_datetime
 from pydantic import Field
-from pytz import timezone
 
 
 class TradierEquityHistoricalQueryParams(EquityHistoricalQueryParams):
     """Tradier Equity Historical Query."""
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "interval": {"choices": ["1m", "5m", "15m", "1d", "1W", "1M"]},
+    }
 
     interval: Literal["1m", "5m", "15m", "1d", "1W", "1M"] = Field(
         description=QUERY_DESCRIPTIONS.get("interval", ""),
@@ -56,6 +56,9 @@ class TradierEquityHistoricalFetcher(
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> TradierEquityHistoricalQueryParams:
         """Transform the query."""
+        # pylint: disable=import-outside-toplevel
+        from datetime import timedelta
+
         if params.get("interval") in ["1d", "1W", "1M"]:
             if params.get("start_date") is None:
                 params["start_date"] = (datetime.now() - timedelta(days=365)).date()
@@ -84,11 +87,19 @@ class TradierEquityHistoricalFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Tradier endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_core.provider.utils.helpers import (
+            amake_request,
+            safe_fromtimestamp,
+        )  # noqa
+        from pytz import timezone  # noqa
+
         api_key = credentials.get("tradier_api_key") if credentials else ""
         sandbox = True
 
         if api_key and credentials.get("tradier_account_type") not in ["sandbox", "live"]:  # type: ignore
-            raise ValueError(
+            raise OpenBBError(
                 "Invalid account type for Tradier. Must be either 'sandbox' or 'live'."
             )
 
@@ -173,6 +184,9 @@ class TradierEquityHistoricalFetcher(
         **kwargs: Any,
     ) -> List[TradierEquityHistoricalData]:
         """Transform and validate the data."""
+        # pylint: disable=import-outside-toplevel
+        from pandas import to_datetime
+
         interval = "timestamp" if query.interval in ["1m", "5m", "15m"] else "date"
         return [
             TradierEquityHistoricalData.model_validate(d)

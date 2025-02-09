@@ -1,15 +1,14 @@
 """TMX ETF Info fetcher."""
 
 # pylint: disable=unused-argument
+
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_info import (
     EtfInfoData,
     EtfInfoQueryParams,
 )
-from openbb_tmx.utils.helpers import get_all_etfs
 from pydantic import Field, field_validator
 
 
@@ -28,9 +27,14 @@ class TmxEtfInfoQueryParams(EtfInfoQueryParams):
 class TmxEtfInfoData(EtfInfoData):
     """TMX ETF Info Data."""
 
-    issuer: Optional[str] = Field(
-        description="The issuer of the ETF.", alias="fund_family", default=None
-    )
+    __alias_dict__ = {
+        "avg_volume": "volume_avg_daily",
+        "issuer": "fund_family",
+        "avg_volume_30d": "volume_avg_30d",
+        "description": "investment_objectives",
+    }
+
+    issuer: Optional[str] = Field(description="The issuer of the ETF.", default=None)
     investment_style: Optional[str] = Field(
         description="The investment style of the ETF.", default=None
     )
@@ -92,12 +96,10 @@ class TmxEtfInfoData(EtfInfoData):
     )
     avg_volume: Optional[int] = Field(
         description="The average daily volume of the ETF.",
-        alias="volume_avg_daily",
         default=None,
     )
     avg_volume_30d: Optional[int] = Field(
         description="The 30-day average volume of the ETF.",
-        alias="volume_avg_30d",
         default=None,
     )
     aum: Optional[float] = Field(description="The AUM of the ETF.", default=None)
@@ -128,7 +130,6 @@ class TmxEtfInfoData(EtfInfoData):
     website: Optional[str] = Field(description="The website of the ETF.", default=None)
     description: Optional[str] = Field(
         description="The description of the ETF.",
-        alias="investment_objectives",
         default=None,
     )
 
@@ -160,7 +161,7 @@ class TmxEtfInfoFetcher(
         List[TmxEtfInfoData],
     ]
 ):
-    """Transform the query, extract and transform the data from the TMX endpoints."""
+    """TMX ETF Info Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> TmxEtfInfoQueryParams:
@@ -174,12 +175,15 @@ class TmxEtfInfoFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.utils.helpers import get_all_etfs
+        from pandas import DataFrame
 
         results = []
         symbols = (
             query.symbol.split(",") if "," in query.symbol else [query.symbol.upper()]
         )
-        _data = pd.DataFrame(await get_all_etfs(use_cache=query.use_cache))
+        _data = DataFrame(await get_all_etfs(use_cache=query.use_cache))
         COLUMNS = [
             "symbol",
             "inception_date",
@@ -214,7 +218,7 @@ class TmxEtfInfoFetcher(
 
         for symbol in symbols:
             result = {}
-            target = pd.DataFrame()
+            target = DataFrame()
             symbol = (  # noqa: PLW2901
                 symbol.replace(".TO", "").replace(".TSX", "").replace("-", ".")
             )

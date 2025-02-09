@@ -2,11 +2,8 @@
 
 # pylint: disable=unused-argument
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-from finvizfinance.group.overview import Overview
-from finvizfinance.group.performance import Performance
-from finvizfinance.group.valuation import Valuation
 from openbb_core.provider.abstract.data import ForceInt
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.compare_groups import (
@@ -15,23 +12,35 @@ from openbb_core.provider.standard_models.compare_groups import (
 )
 from openbb_core.provider.utils.descriptions import DATA_DESCRIPTIONS
 from openbb_finviz.utils.definitions import GROUPS, GROUPS_DICT, METRICS
-from pandas import DataFrame
 from pydantic import Field, field_validator
+
+GROUPS_CHOICES = sorted(list(GROUPS_DICT))
 
 
 class FinvizCompareGroupsQueryParams(CompareGroupsQueryParams):
     """Finviz Compare Groups Query Params."""
 
-    group: Union[GROUPS, None] = Field(
+    __json_schema_extra__ = {
+        "group": {
+            "multiple_items_allowed": False,
+            "choices": GROUPS_CHOICES,
+        },
+        "metric": {
+            "multiple_items_allowed": False,
+            "choices": ["performance", "valuation", "overview"],
+        },
+    }
+
+    group: GROUPS = Field(
         default="sector",
         description="US-listed stocks only."
-        + " When a sector is selected, it is broken down by industry."
-        + " The default is sector.",
+        + " When an individual sector is selected, it is broken down by industry."
+        + " The default is 'sector'.",
     )
-    metric: Union[METRICS, None] = Field(
+    metric: METRICS = Field(
         default="performance",
-        description="Select from: performance, valuation, overview."
-        + " The default is performance.",
+        description="Statistical metric to return. Select from: ['performance', 'valuation', 'overview']"
+        + " The default is 'performance'.",
     )
 
 
@@ -42,21 +51,21 @@ class FinvizCompareGroupsData(CompareGroupsData):
         "name": "Name",
         "stocks": "Number of Stocks",
         "market_cap": "Market Cap",
-        "performance_1D": "Change",
-        "performance_1W": "Perf Week",
-        "performance_1M": "Perf Month",
-        "performance_3M": "Perf Quart",
-        "performance_6M": "Perf Half",
-        "performance_1Y": "Perf Year",
-        "performance_YTD": "Perf YTD",
+        "performance_1d": "Change",
+        "performance_1w": "Perf Week",
+        "performance_1m": "Perf Month",
+        "performance_3m": "Perf Quart",
+        "performance_6m": "Perf Half",
+        "performance_1y": "Perf Year",
+        "performance_ytd": "Perf YTD",
         "volume": "Volume",
         "volume_average": "Avg Volume",
         "volume_relative": "Rel Volume",
         "pe": "P/E",
         "forward_pe": "Fwd P/E",
-        "pe_growth": "PEG",
-        "eps_growth_past_5_years": "EPS past 5Y",
-        "eps_growth_next_5_years": "EPS next 5Y",
+        "peg": "PEG",
+        "eps_growth_past_5y": "EPS past 5Y",
+        "eps_growth_next_5y": "EPS next 5Y",
         "sales_growth_past_5_years": "Sales past 5Y",
         "price_to_sales": "P/S",
         "price_to_book": "P/B",
@@ -67,46 +76,47 @@ class FinvizCompareGroupsData(CompareGroupsData):
         "analyst_recommendation": "Recom",
     }
 
+    name: str = Field(description="Name or label of the group.")
+
     stocks: Optional[int] = Field(
         default=None,
         description="The number of stocks in the group.",
-        alias="Stocks",
     )
     market_cap: Optional[ForceInt] = Field(
         default=None,
         description="The market cap of the group.",
     )
-    performance_1D: Optional[float] = Field(
+    performance_1d: Optional[float] = Field(
         default=None,
         description="The performance in the last day, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_1W: Optional[float] = Field(
+    performance_1w: Optional[float] = Field(
         default=None,
         description="The performance in the last week, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_1M: Optional[float] = Field(
+    performance_1m: Optional[float] = Field(
         default=None,
         description="The performance in the last month, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_3M: Optional[float] = Field(
+    performance_3m: Optional[float] = Field(
         default=None,
         description="The performance in the last quarter, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_6M: Optional[float] = Field(
+    performance_6m: Optional[float] = Field(
         default=None,
         description="The performance in the last half year, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_1Y: Optional[float] = Field(
+    performance_1y: Optional[float] = Field(
         default=None,
         description="The performance in the last year, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    performance_YTD: Optional[float] = Field(
+    performance_ytd: Optional[float] = Field(
         default=None,
         description="The performance in the year to date, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
@@ -127,20 +137,19 @@ class FinvizCompareGroupsData(CompareGroupsData):
     peg: Optional[float] = Field(
         default=None,
         description="The PEG ratio of the group.",
-        alias="pe_growth",
     )
-    eps_growth_past_5_years: Optional[float] = Field(
+    eps_growth_past_5y: Optional[float] = Field(
         default=None,
         description="The EPS growth of the group for the past 5 years, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    eps_growth_next_5_years: Optional[float] = Field(
+    eps_growth_next_5y: Optional[float] = Field(
         default=None,
         description="The estimated EPS growth of the groupo for the next 5 years,"
         + " as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
-    sales_growth_past_5_years: Optional[float] = Field(
+    sales_growth_past_5y: Optional[float] = Field(
         default=None,
         description="The sales growth of the group for the past 5 years, as a normalized percent.",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
@@ -167,16 +176,16 @@ class FinvizCompareGroupsData(CompareGroupsData):
     )
 
     @field_validator(
-        "performance_1W",
-        "performance_1M",
-        "performance_3M",
-        "performance_6M",
-        "performance_1Y",
-        "performance_YTD",
+        "performance_1w",
+        "performance_1m",
+        "performance_3m",
+        "performance_6m",
+        "performance_1y",
+        "performance_ytd",
         "dividend_yield",
-        "eps_growth_past_5_years",
-        "eps_growth_next_5_years",
-        "sales_growth_past_5_years",
+        "eps_growth_past_5y",
+        "eps_growth_next_5y",
+        "sales_growth_past_5y",
         "float_short",
         mode="before",
         check_fields=False,
@@ -224,7 +233,14 @@ class FinvizCompareGroupsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data from Finviz."""
-        results = []
+        # pylint: disable=import-outside-toplevel
+        from finvizfinance import util
+        from finvizfinance.group import Overview, Performance, Valuation
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from pandas import DataFrame
+
+        util.session = get_requests_session()
+        results: List = []
         data = DataFrame()
         if query.metric == "performance":
             data = Performance().screener_view(
@@ -241,8 +257,10 @@ class FinvizCompareGroupsFetcher(
                 group=GROUPS_DICT[query.group],  # type: ignore
                 order="Change",
             )
+
         if not data.empty:
             results = data.fillna("N/A").replace("N/A", None).to_dict(orient="records")
+
         return results
 
     @staticmethod

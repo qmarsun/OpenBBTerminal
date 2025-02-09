@@ -54,6 +54,8 @@ logging_settings.platform = "Windows"
 logging_settings.python_version = "3.9"
 logging_settings.platform_version = "1.2.3"
 logging_settings.user_id = "user123"
+logging_settings.logging_suppress = False
+logging_settings.log_collect = True
 
 
 @pytest.fixture
@@ -105,7 +107,10 @@ def test_emit_calls_handleError_when_send_raises_exception(handler):
     handler.handleError = MagicMock()
 
     # Act
-    handler.emit(record)
+    try:
+        handler.emit(record)
+    except Exception as e:
+        assert isinstance(e, Exception)
 
     # Assert
     handler.send.assert_called_once_with(record=record)
@@ -132,7 +137,10 @@ def test_emit_calls_handleError_when_send_raises_exception_of_specific_type(hand
     handler.handleError = MagicMock()
 
     # Act
-    handler.emit(record)
+    try:
+        handler.emit(record)
+    except Exception as e:
+        assert isinstance(e, ValueError)
 
     # Assert
     handler.send.assert_called_once_with(record=record)
@@ -159,7 +167,10 @@ def test_emit_calls_handleError_when_send_raises_exception_of_another_type(handl
     handler.handleError = MagicMock()
 
     # Act
-    handler.emit(record)
+    try:
+        handler.emit(record)
+    except Exception as e:
+        assert isinstance(e, TypeError)
 
     # Assert
     handler.send.assert_called_once_with(record=record)

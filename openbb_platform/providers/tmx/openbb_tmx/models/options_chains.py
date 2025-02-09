@@ -5,7 +5,7 @@ from datetime import (
     date as dateType,
     datetime,
 )
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.options_chains import (
@@ -15,7 +15,6 @@ from openbb_core.provider.standard_models.options_chains import (
 from openbb_core.provider.utils.descriptions import (
     QUERY_DESCRIPTIONS,
 )
-from openbb_tmx.utils.helpers import download_eod_chains, get_current_options
 from pydantic import Field, field_validator
 
 
@@ -39,36 +38,34 @@ class TmxOptionsChainsQueryParams(OptionsChainsQueryParams):
 class TmxOptionsChainsData(OptionsChainsData):
     """TMX Options Chains Data."""
 
-    transactions: Optional[int] = Field(
-        description="Number of transactions for the contract.", default=None
+    __doc__ = OptionsChainsData.__doc__
+
+    transactions: List[Union[int, None]] = Field(
+        default_factory=list, description="Number of transactions for the contract."
     )
-    total_value: Optional[float] = Field(
-        description="Total value of the transactions.", default=None
+    total_value: List[Union[float, None]] = Field(
+        default_factory=list,
+        description="Total value of the transactions.",
     )
-    settlement_price: Optional[float] = Field(
-        description="Settlement price on that date.", default=None
-    )
-    underlying_price: Optional[float] = Field(
-        description="Price of the underlying stock on that date.", default=None
-    )
-    dte: Optional[int] = Field(
-        description="Days to expiration for the option.", default=None
+    settlement_price: List[Union[float, None]] = Field(
+        default_factory=list,
+        description="Settlement price on that date.",
     )
 
     @field_validator("expiration", mode="before", check_fields=False)
     @classmethod
-    def date_validate(cls, v):  # pylint: disable=E0213
+    def date_validate(cls, v):
         """Return the datetime object from the date string"""
-        return datetime.strptime(v, "%Y-%m-%d")
+        return [datetime.strptime(d, "%Y-%m-%d") for d in v]
 
 
 class TmxOptionsChainsFetcher(
     Fetcher[
         TmxOptionsChainsQueryParams,
-        List[TmxOptionsChainsData],
+        TmxOptionsChainsData,
     ]
 ):
-    """Transform the query, extract and transform the data from the TMX endpoints."""
+    """TMX Options Chains Fetcher."""
 
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> TmxOptionsChainsQueryParams:
@@ -80,26 +77,39 @@ class TmxOptionsChainsFetcher(
         query: TmxOptionsChainsQueryParams,
         credentials: Optional[Dict[str, str]],
         **kwargs: Any,
-    ) -> List[Dict]:
+    ) -> Dict:
         """Return the data."""
-        results = []
+        # pylint: disable=import-outside-toplevel
+        from openbb_tmx.models.equity_quote import TmxEquityQuoteFetcher
+        from openbb_tmx.utils.helpers import download_eod_chains, get_current_options
+        from pandas import DataFrame
+
+        results: Dict = {}
+        chains = DataFrame()
         if query.date is not None:
             chains = await download_eod_chains(
                 symbol=query.symbol, date=query.date, use_cache=query.use_cache
             )
         else:
             chains = await get_current_options(query.symbol, use_cache=query.use_cache)
+            underlying_quote = await TmxEquityQuoteFetcher.fetch_data(
+                {"symbol": query.symbol}, credentials
+            )
+            underlying_price = underlying_quote[0].last_price  # type: ignore
+            if underlying_price and not chains.empty:
+                chains["underlying_price"] = underlying_price
+                chains["underlying_symbol"] = query.symbol + ":CA"
 
         if not chains.empty:
-            results = chains.to_dict(orient="records")
+            results = chains.to_dict(orient="list")
 
         return results
 
     @staticmethod
     def transform_data(
         query: TmxOptionsChainsQueryParams,
-        data: dict,
+        data: Dict,
         **kwargs: Any,
-    ) -> List[TmxOptionsChainsData]:
+    ) -> TmxOptionsChainsData:
         """Transform the data and validate the model."""
-        return [TmxOptionsChainsData.model_validate(d) for d in data]
+        return TmxOptionsChainsData.model_validate(data)

@@ -5,14 +5,13 @@ from datetime import (
 )
 from typing import Optional, Union
 
-from pydantic import Field, field_validator
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field, field_validator
 
 
 class SpotRateQueryParams(QueryParams):
@@ -32,7 +31,6 @@ class SpotRateQueryParams(QueryParams):
     category: str = Field(
         default="spot_rate",
         description="Rate category. Options: spot_rate, par_yield.",
-        json_schema_extra={"choices": ["par_yield", "spot_rate"]},
     )
 
     @field_validator("category", mode="before", check_fields=False)

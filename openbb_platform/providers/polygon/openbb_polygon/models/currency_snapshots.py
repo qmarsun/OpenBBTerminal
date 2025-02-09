@@ -1,24 +1,22 @@
-"""Polygon Currency Snapshots"""
+"""Polygon Currency Snapshots."""
 
 # pylint: disable=unused-argument
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.currency_snapshots import (
     CurrencySnapshotsData,
     CurrencySnapshotsQueryParams,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_core.provider.utils.helpers import amake_request, safe_fromtimestamp
-from pandas import DataFrame, concat
 from pydantic import Field
 
 
 class PolygonCurrencySnapshotsQueryParams(CurrencySnapshotsQueryParams):
     """Polygon Currency Snapshots Query Parameters.
-
 
     Source: https://polygon.io/docs/forex/get_v2_snapshot_locale_global_markets_forex_tickers
     """
@@ -112,11 +110,14 @@ class PolygonCurrencySnapshotsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import amake_request
+
         api_key = credentials.get("polygon_api_key") if credentials else ""
         url = f"https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers?apiKey={api_key}"
         results = await amake_request(url, **kwargs)
         if results.get("status") != "OK":  # type: ignore[union-attr]
-            raise RuntimeError(f"Error: {results.get('status')}")  # type: ignore[union-attr]
+            raise OpenBBError(f"Error: {results.get('status')}")  # type: ignore[union-attr]
         return results.get("tickers", [])  # type: ignore[union-attr]
 
     @staticmethod
@@ -126,6 +127,11 @@ class PolygonCurrencySnapshotsFetcher(
         **kwargs: Any,
     ) -> List[PolygonCurrencySnapshotsData]:
         """Transform the data."""
+        # pylint: disable=import-outside-toplevel
+        from datetime import timezone  # noqa
+        from openbb_core.provider.utils.helpers import safe_fromtimestamp  # noqa
+        from pandas import DataFrame, concat  # noqa
+
         if not data:
             raise EmptyDataError("No data returned.")
         counter_currencies = (
@@ -177,7 +183,9 @@ class PolygonCurrencySnapshotsFetcher(
         for item in filtered_data:
             new_item = {}
             new_item["base_currency"] = item.get("base_currency")
-            new_item["counter_currency"] = item.get("counter_currency")
+            new_item["counter_currency"] = item.get("counter_currency") or item.get(
+                "index"
+            )
             new_item["change"] = item.get("todaysChange", None)
             change_percent = item.get("todaysChangePerc", None)
             new_item["change_percent"] = (

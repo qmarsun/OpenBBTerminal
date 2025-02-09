@@ -758,3 +758,183 @@ def test_charting_fixedincome_government_yield_curve(params, headers):
     assert chart
     assert not fig
     assert list(chart.keys()) == ["content", "format"]
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "yfinance",
+                "symbol": "ES",
+                "start_date": "2022-01-01",
+                "end_date": "2022-02-01",
+                "chart": True,
+            }
+        )
+    ],
+)
+@pytest.mark.integration
+def test_charting_derivatives_futures_historical(params, headers):
+    """Test chart derivatives futures historical."""
+    params = {p: v for p, v in params.items() if v}
+    body = (json.dumps({"extra_params": {"chart_params": {"title": "test chart"}}}),)
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/derivatives/futures/historical?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10, json=body)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+    chart = result.json()["chart"]
+    fig = chart.pop("fig", {})
+
+    assert chart
+    assert not fig
+    assert list(chart.keys()) == ["content", "format"]
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "yfinance",
+                "symbol": "ES",
+                "date": None,
+                "chart": True,
+            }
+        ),
+        (
+            {
+                "provider": "cboe",
+                "symbol": "VX",
+                "date": "2024-06-25",
+                "chart": True,
+            }
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_charting_derivatives_futures_curve(params, headers):
+    """Test chart derivatives futures curve."""
+    params = {p: v for p, v in params.items() if v}
+    body = (json.dumps({"extra_params": {"chart_params": {"title": "test chart"}}}),)
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/derivatives/futures/curve?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10, json=body)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+    chart = result.json()["chart"]
+    fig = chart.pop("fig", {})
+
+    assert chart
+    assert not fig
+    assert list(chart.keys()) == ["content", "format"]
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "fmp",
+                "symbol": "AAPL",
+                "start_date": "2024-01-01",
+                "end_date": "2024-06-30",
+                "chart": True,
+            }
+        )
+    ],
+)
+@pytest.mark.integration
+def test_charting_equity_historical_market_cap(params, headers):
+    """Test chart equity historical market cap."""
+    params = {p: v for p, v in params.items() if v}
+    body = (json.dumps({"extra_params": {"chart_params": {"title": "test chart"}}}),)
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/equity/historical_market_cap?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10, json=body)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+    chart = result.json()["chart"]
+    fig = chart.pop("fig", {})
+
+    assert chart
+    assert not fig
+    assert list(chart.keys()) == ["content", "format"]
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "provider": "bls",
+                "symbol": "APUS49D74714,APUS49D74715,APUS49D74716",
+                "start_date": "2014-01-01",
+                "end_date": "2024-07-01",
+                "chart": True,
+            }
+        ),
+    ],
+)
+@pytest.mark.integration
+def test_charting_economy_survey_bls_series(params, headers):
+    """Test chart economy survey bls series."""
+    params = {p: v for p, v in params.items() if v}
+    body = (json.dumps({"extra_params": {"chart_params": {"title": "test chart"}}}),)
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/economy/survey/bls_series?{query_str}"
+    result = requests.get(url, headers=headers, timeout=10, json=body)
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+    chart = result.json()["chart"]
+    fig = chart.pop("fig", {})
+
+    assert chart
+    assert not fig
+    assert list(chart.keys()) == ["content", "format"]
+
+
+@parametrize(
+    "params",
+    [
+        (
+            {
+                "data": "",
+                "method": "pearson",
+                "chart": True,
+            }
+        )
+    ],
+)
+@pytest.mark.integration
+def test_charting_econometrics_correlation_matrix(params, headers):
+    """Test chart econometrics correlation matrix."""
+    # pylint:disable=import-outside-toplevel
+    from pandas import DataFrame
+
+    url = "http://0.0.0.0:8000/api/v1/equity/price/historical?symbol=AAPL,MSFT,GOOG&provider=yfinance"
+    result = requests.get(url, headers=headers, timeout=10)
+    df = DataFrame(result.json()["results"])
+    df = df.pivot(index="date", columns="symbol", values="close").reset_index()
+    body = df.to_dict(orient="records")
+
+    params = {p: v for p, v in params.items() if v}
+
+    query_str = get_querystring(params, [])
+    url = f"http://0.0.0.0:8000/api/v1/econometrics/correlation_matrix?{query_str}"
+    result = requests.post(url, headers=headers, timeout=10, data=json.dumps(body))
+
+    assert isinstance(result, requests.Response)
+    assert result.status_code == 200
+
+    chart = result.json()["chart"]
+    fig = chart.pop("fig", {})
+
+    assert chart
+    assert not fig
+    assert list(chart.keys()) == ["content", "format"]

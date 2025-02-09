@@ -6,14 +6,13 @@ from datetime import (
 )
 from typing import Literal, Optional, Union
 
-from pydantic import Field, field_validator
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field, field_validator
 
 
 class BondTradesQueryParams(QueryParams):
@@ -79,14 +78,17 @@ class BondTradesData(Data):
     price: Optional[float] = Field(
         default=None,
         description="Price of the bond.",
+        json_schema_extra={"x-unit_measurement": "currency"},
     )
     current_yield: Optional[float] = Field(
         default=None,
         description="Current yield of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     coupon_rate: Optional[float] = Field(
         default=None,
         description="Coupon rate of the bond.",
+        json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     volume: Optional[int] = Field(
         default=None,

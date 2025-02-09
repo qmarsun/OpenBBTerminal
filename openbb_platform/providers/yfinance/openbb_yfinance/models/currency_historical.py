@@ -1,12 +1,10 @@
 """Yahoo Finance Currency Price Model."""
 
-# ruff: noqa: SIM105
 # pylint: disable=unused-argument
 
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from dateutil.relativedelta import relativedelta
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.currency_historical import (
     CurrencyHistoricalData,
@@ -14,7 +12,6 @@ from openbb_core.provider.standard_models.currency_historical import (
 )
 from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_yfinance.utils.helpers import yf_download
 from openbb_yfinance.utils.references import INTERVALS_DICT
 from pydantic import Field
 
@@ -25,7 +22,26 @@ class YFinanceCurrencyHistoricalQueryParams(CurrencyHistoricalQueryParams):
     Source: https://finance.yahoo.com/currencies/
     """
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "interval": {
+            "choices": [
+                "1m",
+                "2m",
+                "5m",
+                "15m",
+                "30m",
+                "60m",
+                "90m",
+                "1h",
+                "1d",
+                "5d",
+                "1W",
+                "1M",
+                "1Q",
+            ]
+        },
+    }
 
     interval: Literal[
         "1m",
@@ -64,6 +80,8 @@ class YFinanceCurrencyHistoricalFetcher(
         params: Dict[str, Any]
     ) -> YFinanceCurrencyHistoricalQueryParams:
         """Transform the query."""
+        # pylint: disable=import-outside-toplevel
+        from dateutil.relativedelta import relativedelta
 
         transformed_params = params
         symbols = params["symbol"].split(",")
@@ -89,6 +107,9 @@ class YFinanceCurrencyHistoricalFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Yahoo Finance endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_yfinance.utils.helpers import yf_download
+
         data = yf_download(
             query.symbol,
             start_date=query.start_date,

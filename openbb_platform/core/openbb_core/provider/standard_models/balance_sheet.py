@@ -3,23 +3,18 @@
 from datetime import date as dateType
 from typing import Optional
 
-from pydantic import Field, NonNegativeInt, field_validator
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field, NonNegativeInt, field_validator
 
 
 class BalanceSheetQueryParams(QueryParams):
     """Balance Sheet Query."""
 
     symbol: str = Field(description=QUERY_DESCRIPTIONS.get("symbol", ""))
-    period: str = Field(
-        default="annual",
-        description=QUERY_DESCRIPTIONS.get("period", ""),
-    )
     limit: Optional[NonNegativeInt] = Field(
         default=5, description=QUERY_DESCRIPTIONS.get("limit", "")
     )
@@ -29,12 +24,6 @@ class BalanceSheetQueryParams(QueryParams):
     def to_upper(cls, v: str):
         """Convert field to uppercase."""
         return v.upper()
-
-    @field_validator("period", mode="before", check_fields=False)
-    @classmethod
-    def to_lower(cls, v: Optional[str]) -> Optional[str]:
-        """Convert field to lowercase."""
-        return v.lower() if v else v
 
 
 class BalanceSheetData(Data):

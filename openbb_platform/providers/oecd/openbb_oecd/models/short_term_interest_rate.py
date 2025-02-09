@@ -1,9 +1,8 @@
-"""OECD Short Term Interest Rate Rate Data."""
+"""OECD Short Term Interest Rate Data."""
 
 # pylint: disable=unused-argument
 
-import re
-from datetime import date, timedelta
+from datetime import date
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from openbb_core.provider.abstract.fetcher import Fetcher
@@ -11,7 +10,6 @@ from openbb_core.provider.standard_models.short_term_interest_rate import (
     STIRData,
     STIRQueryParams,
 )
-from openbb_oecd.utils import helpers
 from openbb_oecd.utils.constants import CODE_TO_COUNTRY_IR, COUNTRY_TO_CODE_IR
 from pydantic import Field, field_validator
 
@@ -23,7 +21,7 @@ class OECDSTIRQueryParams(STIRQueryParams):
     """OECD Short Term Interest Rate Query."""
 
     country: CountriesLiteral = Field(
-        description="Country to get GDP for.", default="united_states"
+        description="Country to get interest rate for.", default="united_states"
     )
 
     frequency: Literal["monthly", "quarterly", "annual"] = Field(
@@ -38,6 +36,10 @@ class OECDSTIRData(STIRData):
     @classmethod
     def date_validate(cls, in_date: Union[date, str]):  # pylint: disable=E0213
         """Validate value."""
+        # pylint: disable=import-outside-toplevel
+        import re
+        from datetime import timedelta
+
         if isinstance(in_date, str):
             # i.e 2022-Q1
             if re.match(r"\d{4}-Q[1-4]$", in_date):
@@ -89,6 +91,9 @@ class OECDSTIRFetcher(Fetcher[OECDSTIRQueryParams, List[OECDSTIRData]]):
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the OECD endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_oecd.utils import helpers
+
         frequency = query.frequency[0].upper()
         country = "" if query.country == "all" else COUNTRY_TO_CODE_IR[query.country]
         query_dict = {
@@ -125,4 +130,7 @@ class OECDSTIRFetcher(Fetcher[OECDSTIRQueryParams, List[OECDSTIRData]]):
         query: OECDSTIRQueryParams, data: List[Dict], **kwargs: Any
     ) -> List[OECDSTIRData]:
         """Transform the data from the OECD endpoint."""
-        return [OECDSTIRData.model_validate(d) for d in data]
+        return [
+            OECDSTIRData.model_validate(d)
+            for d in sorted(data, key=lambda x: x["date"])
+        ]

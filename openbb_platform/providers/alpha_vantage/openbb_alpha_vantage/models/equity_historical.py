@@ -2,18 +2,10 @@
 
 # pylint: disable=unused-argument
 
-import asyncio
 from datetime import datetime
-from io import BytesIO
 from typing import Any, Dict, List, Literal, Optional
 from warnings import warn
 
-from dateutil.relativedelta import relativedelta
-from openbb_alpha_vantage.utils.helpers import (
-    INTERVALS_DICT,
-    calculate_adjusted_prices,
-    get_interval,
-)
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_historical import (
     EquityHistoricalData,
@@ -23,17 +15,10 @@ from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
-from openbb_core.provider.utils.helpers import (
-    amake_request,
-    amake_requests,
-    get_querystring,
-)
-from pandas import date_range, read_csv, to_datetime
 from pydantic import (
     Field,
     NonNegativeFloat,
     PositiveFloat,
-    model_validator,
 )
 
 
@@ -43,7 +28,10 @@ class AVEquityHistoricalQueryParams(EquityHistoricalQueryParams):
     Source: https://www.alphavantage.co/documentation/#time-series-data
     """
 
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "interval": {"choices": ["1m", "5m", "15m", "30m", "60m", "1d", "1W", "1M"]},
+    }
 
     interval: Literal["1m", "5m", "15m", "30m", "60m", "1d", "1W", "1M"] = Field(
         default="1d",
@@ -53,29 +41,10 @@ class AVEquityHistoricalQueryParams(EquityHistoricalQueryParams):
         description="The adjustment factor to apply. 'splits_only' is not supported for intraday data.",
         default="splits_only",
     )
-    extended_hours: Optional[bool] = Field(
+    extended_hours: bool = Field(
         description="Include Pre and Post market data.",
         default=False,
     )
-    adjusted: bool = Field(
-        default=False,
-        exclude=True,
-        description="This field is deprecated (4.1.5) and will be removed in a future version."
-        + " Use 'adjustment' set as 'splits_and_dividends' instead.",
-        json_schema_extra={"deprecated": True},
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_deprecated_params(cls, values):
-        """Validate the deprecated parameters."""
-        for k, v in values.copy().items():
-            if k in ["adjusted"] and v is True:
-                warn(
-                    f"The '{k}' parameter is deprecated and will be removed in a future version."
-                )
-                values["adjustment"] = "splits_and_dividends"
-        return values
 
 
 class AVEquityHistoricalData(EquityHistoricalData):
@@ -111,6 +80,9 @@ class AVEquityHistoricalFetcher(
     @staticmethod
     def transform_query(params: Dict[str, Any]) -> AVEquityHistoricalQueryParams:
         """Transform the query."""
+        # pylint: disable=import-outside-toplevel
+        from dateutil.relativedelta import relativedelta
+
         transformed_params = params
 
         now = datetime.now().date()
@@ -129,6 +101,21 @@ class AVEquityHistoricalFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Alpha Vantage endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from io import BytesIO  # noqa
+        from openbb_alpha_vantage.utils.helpers import (  # noqa
+            INTERVALS_DICT,
+            calculate_adjusted_prices,
+            get_interval,
+        )
+        from openbb_core.provider.utils.helpers import (  # noqa
+            amake_request,
+            amake_requests,
+            get_querystring,
+        )
+        from pandas import date_range, read_csv, to_datetime  # noqa
+
         api_key = credentials.get("alpha_vantage_api_key") if credentials else ""
         intraday = False
         interval = get_interval(query.interval)
@@ -283,7 +270,11 @@ class AVEquityHistoricalFetcher(
                         if len(query.symbol.split(",")) > 1:
                             data.loc[:, "symbol"] = symbol
 
-                        results.extend(data.reset_index().to_dict("records"))
+                        data = data.reset_index()
+                        if intraday is False:
+                            data["date"] = data["date"].dt.date
+
+                        results.extend(data.to_dict("records"))
 
             return results
 
@@ -297,6 +288,9 @@ class AVEquityHistoricalFetcher(
         query: AVEquityHistoricalQueryParams, data: List[Dict], **kwargs: Any
     ) -> List[AVEquityHistoricalData]:
         """Transform the data to the standard format."""
+        # pylint: disable=import-outside-toplevel
+        from pandas import to_datetime
+
         if data == []:
             return []
         if "{" in data[0]:

@@ -1,22 +1,17 @@
 """Intrinio ETF Search Model."""
 
 # pylint: disable=unused-argument
-import re
+
 from typing import Any, Dict, List, Optional, Union
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.etf_search import (
     EtfSearchData,
     EtfSearchQueryParams,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_core.provider.utils.helpers import (
-    ClientResponse,
-    ClientSession,
-    amake_request,
-)
 from openbb_intrinio.utils.references import ETF_EXCHANGES
-from pandas import DataFrame
 from pydantic import Field
 
 
@@ -85,6 +80,12 @@ class IntrinioEtfSearchFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the Intrinio endpoint."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import (
+            ClientResponse,
+            ClientSession,
+            amake_request,
+        )
 
         api_key = credentials.get("intrinio_api_key") if credentials else ""
         BASE = "https://api-v2.intrinio.com/etfs"
@@ -95,7 +96,7 @@ class IntrinioEtfSearchFetcher(
         else:
             url = f"{BASE}?page_size=10000&api_key={api_key}"
 
-        data = []
+        data: List = []
 
         async def response_callback(response: ClientResponse, session: ClientSession):
             """Async response callback."""
@@ -103,7 +104,7 @@ class IntrinioEtfSearchFetcher(
 
             if results.get("messages"):  # type: ignore
                 messages = results.get("messages")  # type: ignore
-                raise RuntimeError(str(messages))
+                raise OpenBBError(str(messages))
 
             if results.get("etfs") and len(results.get("etfs")) > 0:  # type: ignore
                 data.extend(results.get("etfs"))  # type: ignore
@@ -127,6 +128,9 @@ class IntrinioEtfSearchFetcher(
         **kwargs: Any,
     ) -> List[IntrinioEtfSearchData]:
         """Transform data."""
+        # pylint: disable=import-outside-toplevel
+        import re  # noqa
+        from pandas import DataFrame  # noqa
 
         if not data:
             raise EmptyDataError("No data found.")

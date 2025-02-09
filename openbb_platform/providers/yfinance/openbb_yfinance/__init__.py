@@ -12,6 +12,7 @@ from openbb_yfinance.models.currency_historical import YFinanceCurrencyHistorica
 from openbb_yfinance.models.equity_historical import YFinanceEquityHistoricalFetcher
 from openbb_yfinance.models.equity_profile import YFinanceEquityProfileFetcher
 from openbb_yfinance.models.equity_quote import YFinanceEquityQuoteFetcher
+from openbb_yfinance.models.equity_screener import YFinanceEquityScreenerFetcher
 from openbb_yfinance.models.etf_info import YFinanceEtfInfoFetcher
 from openbb_yfinance.models.futures_curve import YFinanceFuturesCurveFetcher
 from openbb_yfinance.models.futures_historical import YFinanceFuturesHistoricalFetcher
@@ -27,6 +28,7 @@ from openbb_yfinance.models.index_historical import (
 from openbb_yfinance.models.key_executives import YFinanceKeyExecutivesFetcher
 from openbb_yfinance.models.key_metrics import YFinanceKeyMetricsFetcher
 from openbb_yfinance.models.losers import YFLosersFetcher
+from openbb_yfinance.models.options_chains import YFinanceOptionsChainsFetcher
 from openbb_yfinance.models.price_target_consensus import (
     YFinancePriceTargetConsensusFetcher,
 )
@@ -56,6 +58,7 @@ financial markets and assets.""",
         "EquityInfo": YFinanceEquityProfileFetcher,
         "EquityLosers": YFLosersFetcher,
         "EquityQuote": YFinanceEquityQuoteFetcher,
+        "EquityScreener": YFinanceEquityScreenerFetcher,
         "EquityUndervaluedGrowth": YFUndervaluedGrowthEquitiesFetcher,
         "EquityUndervaluedLargeCaps": YFUndervaluedLargeCapsFetcher,
         "EtfHistorical": YFinanceEquityHistoricalFetcher,
@@ -68,7 +71,7 @@ financial markets and assets.""",
         "IndexHistorical": YFinanceIndexHistoricalFetcher,
         "KeyExecutives": YFinanceKeyExecutivesFetcher,
         "KeyMetrics": YFinanceKeyMetricsFetcher,
-        "MarketIndices": YFinanceIndexHistoricalFetcher,
+        "OptionsChains": YFinanceOptionsChainsFetcher,
         "PriceTargetConsensus": YFinancePriceTargetConsensusFetcher,
         "ShareStatistics": YFinanceShareStatisticsFetcher,
     },

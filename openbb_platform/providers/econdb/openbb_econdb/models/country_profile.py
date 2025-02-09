@@ -2,25 +2,16 @@
 
 # pylint: disable=unused-argument
 
-import asyncio
 from typing import Any, Dict, List, Optional
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.country_profile import (
     CountryProfileData,
     CountryProfileQueryParams,
 )
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_econdb.utils.helpers import (
-    COUNTRY_GROUPS,
-    COUNTRY_MAP,
-    PROFILE_ORDER,
-    THREE_LETTER_ISO_MAP,
-    get_context,
-    parse_context,
-)
-from pandas import DataFrame, concat
 from pydantic import Field, field_validator
 
 
@@ -44,6 +35,13 @@ class EconDbCountryProfileQueryParams(CountryProfileQueryParams):
     @classmethod
     def validate_country(cls, v):
         """Validate the country."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils.helpers import (
+            COUNTRY_GROUPS,
+            COUNTRY_MAP,
+            THREE_LETTER_ISO_MAP,
+        )
+
         country = v if isinstance(v, list) else v.split(",")
         for c in country.copy():
             if (
@@ -66,7 +64,7 @@ class EconDbCountryProfileQueryParams(CountryProfileQueryParams):
             elif len(c) > 2 and c.lower() in COUNTRY_GROUPS:
                 country[country.index(c)] = ",".join(COUNTRY_GROUPS[c.lower()])
         if len(country) == 0:
-            raise ValueError("No valid countries were supplied.")
+            raise OpenBBError("No valid countries were supplied.")
         return ",".join(country)
 
 
@@ -129,6 +127,11 @@ class EconDbCountryProfileFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the data."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_econdb.utils.helpers import get_context, parse_context  # noqa
+        from pandas import DataFrame, concat  # noqa
+
         country = query.country.split(",")
         latest = query.latest
         use_cache = query.use_cache
@@ -298,6 +301,10 @@ class EconDbCountryProfileFetcher(
         **kwargs: Any,
     ) -> List[EconDbCountryProfileData]:
         """Transform the data."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_econdb.utils.helpers import PROFILE_ORDER
+        from pandas import DataFrame
+
         output_df = (
             DataFrame(data)
             .filter(items=["date", "Country"] + PROFILE_ORDER, axis=1)

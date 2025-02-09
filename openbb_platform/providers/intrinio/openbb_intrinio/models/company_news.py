@@ -2,15 +2,16 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.company_news import (
     CompanyNewsData,
     CompanyNewsQueryParams,
 )
-from openbb_core.provider.utils.errors import EmptyDataError
+from openbb_core.provider.utils.errors import EmptyDataError, UnauthorizedError
 from openbb_core.provider.utils.helpers import (
     amake_request,
     get_querystring,
@@ -30,7 +31,13 @@ class IntrinioCompanyNewsQueryParams(CompanyNewsQueryParams):
         "limit": "page_size",
         "source": "specific_source",
     }
-    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
+    __json_schema_extra__ = {
+        "symbol": {"multiple_items_allowed": True},
+        "source": {
+            "choices": ["yahoo", "moody", "moody_us_news", "moody_us_press_releases"]
+        },
+        "sentiment": {"choices": ["positive", "neutral", "negative"]},
+    }
 
     source: Optional[
         Literal["yahoo", "moody", "moody_us_news", "moody_us_press_releases"]
@@ -38,7 +45,7 @@ class IntrinioCompanyNewsQueryParams(CompanyNewsQueryParams):
         default=None,
         description="The source of the news article.",
     )
-    sentiment: Union[None, Literal["positive", "neutral", "negative"]] = Field(
+    sentiment: Optional[Literal["positive", "neutral", "negative"]] = Field(
         default=None,
         description="Return news only from this source.",
     )
@@ -79,6 +86,14 @@ class IntrinioCompanyNewsQueryParams(CompanyNewsQueryParams):
         description="News stories will have a business relevance score less than this value."
         + " Unsupported for yahoo source. Value is a decimal between 0 and 1.",
     )
+
+    @field_validator("symbol", mode="before", check_fields=False)
+    @classmethod
+    def _symbol_mandatory(cls, v):
+        """Symbol mandatory validator."""
+        if not v:
+            raise OpenBBError("Required field missing -> symbol")
+        return v
 
 
 class IntrinioCompanyNewsData(CompanyNewsData):
@@ -145,7 +160,7 @@ class IntrinioCompanyNewsData(CompanyNewsData):
     @field_validator("topics", mode="before", check_fields=False)
     @classmethod
     def topics_validate(cls, v):
-        """ "Parse the topics as a string."""
+        """Parse the topics as a string."""
         if v:
             topics = [t.get("name") for t in v if t and t not in ["", " "]]
             return ", ".join(topics)
@@ -154,7 +169,7 @@ class IntrinioCompanyNewsData(CompanyNewsData):
     @field_validator("copyright", mode="before", check_fields=False)
     @classmethod
     def copyright_validate(cls, v):
-        """Clean empty strings"""
+        """Clean empty strings."""
         return None if v in ["", " "] else v
 
 
@@ -204,8 +219,14 @@ class IntrinioCompanyNewsFetcher(
         async def callback(response, session):
             """Response callback."""
             result = await response.json()
-            if "error" in result:
-                raise RuntimeError(f"Intrinio Error Message -> {result['error']}")
+
+            if isinstance(result, dict) and "error" in result:
+                if "api key" in result.get("message", "").lower():
+                    raise UnauthorizedError(
+                        f"Unauthorized Intrinio request -> {result.get('message')}"
+                    )
+                raise OpenBBError(f"Error in Intrinio request -> {result}")
+
             symbol = response.url.parts[-2]
             _data = result.get("news", [])
             data = []

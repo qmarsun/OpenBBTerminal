@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jwt import encode
+from openbb_core.app.model.defaults import Defaults
 from openbb_core.app.service.hub_service import (
     Credentials,
     HubService,
@@ -81,10 +82,9 @@ def test_v3tov4_map():
     for provider in providers:
         if provider in v3_keys:
             keys = v3_keys[provider]
-            if not isinstance(keys, list):
-                keys = [keys]
-            for k in keys:
-                assert k in HubService.V3TOV4
+            keys_list = keys if isinstance(keys, list) else [keys]
+            for k in keys_list:
+                assert k.lower() in HubService.V3TOV4
 
 
 def test_connect_with_email_password():
@@ -130,9 +130,9 @@ def test_connect_without_credentials():
 
 def test_get_session_from_email_password():
     """Test get session from email and password."""
-
+    mock_hub_session = MagicMock(spec=HubSession)
     with patch(
-        "openbb_core.app.service.hub_service.post",
+        "requests.post",
         return_value=MagicMock(
             status_code=200,
             json=lambda: {
@@ -144,16 +144,21 @@ def test_get_session_from_email_password():
                 "primary_usage": "primary_usage",
             },
         ),
+    ), patch.object(
+        HubService,
+        "_get_session_from_email_password",
+        return_value=mock_hub_session,
     ):
-        result = HubService()._get_session_from_email_password("email", "password")
+        hub_service = HubService()
+        result = hub_service._get_session_from_email_password("email", "password")
         assert isinstance(result, HubSession)
 
 
 def test_get_session_from_platform_token():
     """Test get session from Platform personal access token."""
-
+    mock_hub_session = MagicMock(spec=HubSession)
     with patch(
-        "openbb_core.app.service.hub_service.post",
+        "requests.post",
         return_value=MagicMock(
             status_code=200,
             json=lambda: {
@@ -165,6 +170,10 @@ def test_get_session_from_platform_token():
                 "primary_usage": "primary_usage",
             },
         ),
+    ), patch.object(
+        HubService,
+        "_get_session_from_platform_token",
+        return_value=mock_hub_session,
     ):
         mock_token = (
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiIsImtpZCI6ImRiMjEyZDdhZj"
@@ -181,18 +190,21 @@ def test_get_session_from_platform_token():
 
 def test_disconnect():
     """Test disconnect."""
-
     with patch(
-        "openbb_core.app.service.hub_service.get",
+        "requests.get",
         return_value=MagicMock(
             status_code=200,
             json=lambda: {"success": True},
         ),
+    ), patch.object(
+        HubService,
+        "_post_logout",
+        return_value=True,
     ):
         mock_hub_session = MagicMock(
             spec=HubSession, access_token=SecretStr("token"), token_type="Bearer"
         )
-        hub_service = HubService(session=mock_hub_session)
+        hub_service = HubService(mock_hub_session)
 
         assert hub_service.disconnect() is True
         assert hub_service.session is None
@@ -201,17 +213,21 @@ def test_disconnect():
 def test_get_user_settings():
     """Test get user settings."""
     with patch(
-        "openbb_core.app.service.hub_service.get",
+        "requests.get",
         return_value=MagicMock(
             status_code=200,
             json=lambda: {},
         ),
+    ), patch.object(
+        HubService,
+        "_get_user_settings",
+        return_value=MagicMock(spec=HubUserSettings),
     ):
         mock_hub_session = MagicMock(
             spec=HubSession, access_token=SecretStr("token"), token_type="Bearer"
         )
-
-        user_settings = HubService()._get_user_settings(mock_hub_session)
+        hub_service = HubService(mock_hub_session)
+        user_settings = hub_service._get_user_settings()
         assert isinstance(user_settings, HubUserSettings)
 
 
@@ -219,19 +235,23 @@ def test_put_user_settings():
     """Test put user settings."""
 
     with patch(
-        "openbb_core.app.service.hub_service.put",
+        "requests.put",
         return_value=MagicMock(
             status_code=200,
         ),
+    ), patch.object(
+        HubService,
+        "_put_user_settings",
+        return_value=True,
     ):
         mock_hub_session = MagicMock(
             spec=HubSession, access_token=SecretStr("token"), token_type="Bearer"
         )
         mock_user_settings = MagicMock(spec=HubUserSettings)
 
+        hub_service = HubService(mock_hub_session)
         assert (
-            HubService()._put_user_settings(mock_hub_session, mock_user_settings)
-            is True
+            hub_service._put_user_settings(mock_hub_session, mock_user_settings) is True
         )
 
 
@@ -243,8 +263,9 @@ def test_hub2platform_v4_only():
         "polygon_api_key": "def",
         "fred_api_key": "ghi",
     }
+    mock_user_settings.features_settings = {}
 
-    credentials = HubService().hub2platform(mock_user_settings)
+    credentials, _ = HubService().hub2platform(mock_user_settings)
     assert isinstance(credentials, Credentials)
     assert credentials.fmp_api_key.get_secret_value() == "abc"
     assert credentials.polygon_api_key.get_secret_value() == "def"
@@ -255,12 +276,13 @@ def test_hub2platform_v3_only():
     """Test hub2platform."""
     mock_user_settings = MagicMock(spec=HubUserSettings)
     mock_user_settings.features_keys = {
-        "API_KEY_FINANCIALMODELINGPREP": "abc",
-        "API_POLYGON_KEY": "def",
-        "API_FRED_KEY": "ghi",
+        "api_key_financialmodelingprep": "abc",
+        "api_polygon_key": "def",
+        "api_fred_key": "ghi",
     }
+    mock_user_settings.features_settings = {}
 
-    credentials = HubService().hub2platform(mock_user_settings)
+    credentials, _ = HubService().hub2platform(mock_user_settings)
     assert isinstance(credentials, Credentials)
     assert credentials.fmp_api_key.get_secret_value() == "abc"
     assert credentials.polygon_api_key.get_secret_value() == "def"
@@ -271,13 +293,14 @@ def test_hub2platform_v3v4():
     """Test hub2platform."""
     mock_user_settings = MagicMock(spec=HubUserSettings)
     mock_user_settings.features_keys = {
-        "API_KEY_FINANCIALMODELINGPREP": "abc",
+        "api_key_financialmodelingprep": "abc",
         "fmp_api_key": "other_key",
-        "API_POLYGON_KEY": "def",
-        "API_FRED_KEY": "ghi",
+        "api_polygon_key": "def",
+        "api_fred_key": "ghi",
     }
+    mock_user_settings.features_settings = {}
 
-    credentials = HubService().hub2platform(mock_user_settings)
+    credentials, _ = HubService().hub2platform(mock_user_settings)
     assert isinstance(credentials, Credentials)
     assert credentials.fmp_api_key.get_secret_value() == "other_key"
     assert credentials.polygon_api_key.get_secret_value() == "def"
@@ -288,10 +311,11 @@ def test_platform2hub():
     """Test platform2hub."""
     mock_user_settings = MagicMock(spec=HubUserSettings)
     mock_user_settings.features_keys = {  # Received from Hub
-        "API_KEY_FINANCIALMODELINGPREP": "abc",
+        "api_key_financialmodelingprep": "abc",
         "fmp_api_key": "other_key",
-        "API_FRED_KEY": "ghi",
+        "api_fred_key": "ghi",
     }
+    mock_user_settings.features_settings = {}
     mock_hub_service = HubService()
     mock_hub_service._hub_user_settings = mock_user_settings
     mock_credentials = Credentials(  # Current credentials
@@ -301,42 +325,49 @@ def test_platform2hub():
         benzinga_api_key=SecretStr("benzinga"),
         some_api_key=SecretStr("some"),
     )
-    user_settings = mock_hub_service.platform2hub(mock_credentials)
+    mock_defaults = Defaults()
+    user_settings = mock_hub_service.platform2hub(mock_credentials, mock_defaults)
 
     assert isinstance(user_settings, HubUserSettings)
-    assert user_settings.features_keys["API_KEY_FINANCIALMODELINGPREP"] == "fmp"
+    assert user_settings.features_keys["api_key_financialmodelingprep"] == "fmp"
     assert user_settings.features_keys["fmp_api_key"] == "other_key"
     assert user_settings.features_keys["polygon_api_key"] == "polygon"
-    assert user_settings.features_keys["API_FRED_KEY"] == "fred"
+    assert user_settings.features_keys["api_fred_key"] == "fred"
     assert user_settings.features_keys["benzinga_api_key"] == "benzinga"
     assert "some_api_key" not in user_settings.features_keys
+    assert "defaults" in user_settings.features_settings
 
 
 @pytest.mark.parametrize(
-    "token, message",
+    "offset, message",
     [
         # valid
         (
-            encode(
-                {"some": "payload", "exp": int(time()) + 100},
-                "secret",
-                algorithm="HS256",
-            ),
+            100,
             None,
         ),
         # expired
         (
-            encode(
-                {"some": "payload", "exp": int(time())}, "secret", algorithm="HS256"
-            ),
+            0,
             "Platform personal access token expired.",
         ),
         # invalid
-        ("invalid_token", "Failed to decode Platform token."),
+        (None, "Failed to decode Platform token."),
     ],
 )
-def test__check_token_expiration(token, message):
+def test__check_token_expiration(offset, message):
     """Test check token expiration function."""
+
+    token = (
+        encode(
+            {"some": "payload", "exp": int(time()) + offset},
+            "secret",
+            algorithm="HS256",
+        )
+        if offset is not None
+        else "invalid_token"
+    )
+
     if message:
         with pytest.raises(OpenBBError, match=message):
             HubService._check_token_expiration(token)

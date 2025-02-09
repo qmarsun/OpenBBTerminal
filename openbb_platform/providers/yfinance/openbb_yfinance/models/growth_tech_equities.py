@@ -2,95 +2,68 @@
 
 # pylint: disable=unused-argument
 
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-import pandas as pd
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_performance import (
-    EquityPerformanceData,
     EquityPerformanceQueryParams,
 )
-from openbb_core.provider.utils.helpers import make_request
-from openbb_yfinance.utils.helpers import df_transform_numbers
+from openbb_yfinance.utils.references import YFPredefinedScreenerData
 from pydantic import Field
 
 
 class YFGrowthTechEquitiesQueryParams(EquityPerformanceQueryParams):
-    """Yahoo Finance Asset Performance Growth Tech Equities Query.
+    """Yahoo Finance Growth Tech Stocks Query.
 
     Source: https://finance.yahoo.com/screener/predefined/growth_technology_stocks
     """
 
-
-class YFGrowthTechEquitiesData(EquityPerformanceData):
-    """Yahoo Finance Asset Performance Growth Tech Equities Data."""
-
-    __alias_dict__ = {
-        "symbol": "Symbol",
-        "name": "Name",
-        "volume": "Volume",
-        "change": "Change",
-        "price": "Price (Intraday)",
-        "percent_change": "% Change",
-        "market_cap": "Market Cap",
-        "avg_volume_3_months": "Avg Vol (3 month)",
-        "pe_ratio_ttm": "PE Ratio (TTM)",
-    }
-
-    market_cap: Optional[float] = Field(
-        default=None,
-        description="Market Cap.",
+    limit: Optional[int] = Field(
+        default=200,
+        description="Limit the number of results.",
     )
-    avg_volume_3_months: Optional[float] = Field(
-        default=None,
-        description="Average volume over the last 3 months in millions.",
-    )
-    pe_ratio_ttm: Optional[float] = Field(
-        description="PE Ratio (TTM).",
-        default=None,
-    )
+
+
+class YFGrowthTechEquitiesData(YFPredefinedScreenerData):
+    """Yahoo Finance Growth Tech Stocks Data."""
 
 
 class YFGrowthTechEquitiesFetcher(
-    Fetcher[YFGrowthTechEquitiesQueryParams, List[YFGrowthTechEquitiesData]]
+    Fetcher[YFGrowthTechEquitiesQueryParams, list[YFGrowthTechEquitiesData]]
 ):
     """Transform the query, extract and transform the data from the Yahoo Finance endpoints."""
 
     @staticmethod
-    def transform_query(params: Dict[str, Any]) -> YFGrowthTechEquitiesQueryParams:
+    def transform_query(params: dict[str, Any]) -> YFGrowthTechEquitiesQueryParams:
         """Transform query params."""
         return YFGrowthTechEquitiesQueryParams(**params)
 
     @staticmethod
-    def extract_data(
+    async def aextract_data(
         query: YFGrowthTechEquitiesQueryParams,
-        credentials: Optional[Dict[str, str]],
+        credentials: Optional[dict[str, str]],
         **kwargs: Any,
-    ) -> pd.DataFrame:
+    ) -> list[dict]:
         """Get data from YF."""
-        headers = {"user_agent": "Mozilla/5.0"}
-        html = make_request(
-            "https://finance.yahoo.com/screener/predefined/growth_technology_stocks",
-            headers=headers,
-        ).text
-        html_clean = re.sub(r"(<span class=\"Fz\(0\)\">).*?(</span>)", "", html)
-        df = pd.read_html(html_clean, header=None)[0].dropna(how="all", axis=1)
-        return df
+        # pylint: disable=import-outside-toplevel
+        from openbb_yfinance.utils.helpers import get_defined_screener
+
+        return await get_defined_screener(
+            name="growth_technology_stocks", limit=query.limit
+        )
 
     @staticmethod
     def transform_data(
         query: EquityPerformanceQueryParams,
-        data: pd.DataFrame,
+        data: list[dict],
         **kwargs: Any,
-    ) -> List[YFGrowthTechEquitiesData]:
+    ) -> list[YFGrowthTechEquitiesData]:
         """Transform data."""
-
-        columns = ["Market Cap", "Avg Vol (3 month)", "Volume", "% Change"]
-
-        data = df_transform_numbers(data=data, columns=columns)
-        data = data.fillna("N/A").replace("N/A", None)
-
         return [
-            YFGrowthTechEquitiesData.model_validate(d) for d in data.to_dict("records")
+            YFGrowthTechEquitiesData.model_validate(d)
+            for d in sorted(
+                data,
+                key=lambda x: x["regularMarketChangePercent"],
+                reverse=query.sort == "desc",
+            )
         ]

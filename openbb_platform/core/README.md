@@ -16,7 +16,7 @@ The Core extension serves as the foundational component of the OpenBB Platform. 
 
 ### Prerequisites
 
-- Python 3.8 or higher.
+- Python 3.9 or higher.
 - Familiarity with FastAPI and Pydantic.
 
 ### Installation
@@ -42,7 +42,7 @@ We welcome contributions! If you're looking to contribute, please:
 - Ensure your code does not negatively impact performance.
 - Test your contributions thoroughly.
 
-Please refer to our [Contributing Guidelines](https://docs.openbb.co/platform/development).
+Please refer to our [Contributing Guidelines](https://docs.openbb.co/platform/developer_guide/contributing).
 
 ### Collaboration
 
@@ -50,8 +50,8 @@ Engage with the development team and the community. Be open to feedback and coll
 
 ### Support
 
-For support, questions, or more information, please visit [OpenBB Platform Documentation](https://docs.openbb.co/platform/development).
+For support, questions, or more information, please visit [OpenBB Platform Documentation](https://docs.openbb.co/platform).
 
 ### License
 
-This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/OpenBB-finance/OpenBBTerminal/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/OpenBB-finance/OpenBB/blob/main/LICENSE) file for details.

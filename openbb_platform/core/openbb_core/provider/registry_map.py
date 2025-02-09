@@ -5,12 +5,11 @@ from inspect import getfile, isclass
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, get_origin
 
-from pydantic import BaseModel
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.registry import Registry, RegistryLoader
+from pydantic import BaseModel
 
 MapType = Dict[str, Dict[str, Dict[str, Dict[str, Any]]]]
 
@@ -40,8 +39,8 @@ class RegistryMap:
         return self._available_providers
 
     @property
-    def credentials(self) -> List[str]:
-        """Get list of required credentials."""
+    def credentials(self) -> Dict[str, List[str]]:
+        """Get map of providers to credentials."""
         return self._credentials
 
     @property
@@ -59,13 +58,11 @@ class RegistryMap:
         """Get available models."""
         return self._models
 
-    def _get_credentials(self, registry: Registry) -> List[str]:
-        """Get list of required credentials."""
-        cred_list = []
-        for provider in registry.providers.values():
-            for c in provider.credentials:
-                cred_list.append(c)
-        return cred_list
+    def _get_credentials(self, registry: Registry) -> Dict[str, List[str]]:
+        """Get map of providers to credentials."""
+        return {
+            name: provider.credentials for name, provider in registry.providers.items()
+        }
 
     def _get_available_providers(self, registry: Registry) -> List[str]:
         """Get list of available providers."""

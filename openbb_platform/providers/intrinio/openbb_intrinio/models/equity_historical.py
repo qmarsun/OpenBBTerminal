@@ -6,6 +6,7 @@ from datetime import datetime, time
 from typing import Any, Dict, List, Literal, Optional
 
 from dateutil.relativedelta import relativedelta
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.equity_historical import (
     EquityHistoricalData,
@@ -30,6 +31,25 @@ class IntrinioEquityHistoricalQueryParams(EquityHistoricalQueryParams):
 
     Source: https://docs.intrinio.com/documentation/web_api/get_security_interval_prices_v2
     """
+
+    __json_schema_extra__ = {
+        "interval": {
+            "choices": [
+                "1m",
+                "5m",
+                "10m",
+                "15m",
+                "30m",
+                "60m",
+                "1h",
+                "1d",
+                "1W",
+                "1M",
+                "1Q",
+                "1Y",
+            ],
+        },
+    }
 
     symbol: str = Field(
         description="A Security identifier (Ticker, FIGI, ISIN, CUSIP, Intrinio ID)."
@@ -83,7 +103,12 @@ class IntrinioEquityHistoricalQueryParams(EquityHistoricalQueryParams):
 class IntrinioEquityHistoricalData(EquityHistoricalData):
     """Intrinio Equity Historical Price Data."""
 
-    __alias_dict__ = {"date": "time"}
+    __alias_dict__ = {
+        "date": "time",
+        "change_percent": "percent_change",
+        "interval": "frequency",
+        "intra_period": "intraperiod",
+    }
 
     average: Optional[float] = Field(
         default=None,
@@ -96,7 +121,6 @@ class IntrinioEquityHistoricalData(EquityHistoricalData):
     change_percent: Optional[float] = Field(
         default=None,
         description="Percent change in the price of the symbol from the previous day.",
-        alias="percent_change",
         json_schema_extra={"x-unit_measurement": "percent", "x-frontend_multiply": 100},
     )
     adj_open: Optional[float] = Field(
@@ -147,7 +171,6 @@ class IntrinioEquityHistoricalData(EquityHistoricalData):
     interval: Optional[str] = Field(
         default=None,
         description="The data time frequency.",
-        alias="frequency",
     )
     intra_period: Optional[bool] = Field(
         default=None,
@@ -155,7 +178,6 @@ class IntrinioEquityHistoricalData(EquityHistoricalData):
         "(be it day, week, quarter, month, or year), meaning that the close "
         "price is the latest price available, not the official close price "
         "for the period",
-        alias="intraperiod",
     )
 
 
@@ -212,7 +234,7 @@ class IntrinioEquityHistoricalFetcher(
             """Return the response."""
             init_response = await response.json()
             if "error" in init_response:
-                raise RuntimeError(
+                raise OpenBBError(
                     f"Intrinio Error Message -> {init_response['error']}: {init_response.get('message')}"  # type: ignore
                 )
 

@@ -1,19 +1,16 @@
 """TMX Stock News model."""
 
 # pylint: disable=unused-argument
-import asyncio
-import json
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import pytz
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.company_news import (
     CompanyNewsData,
     CompanyNewsQueryParams,
 )
-from openbb_tmx.utils import gql
-from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent
 from pydantic import Field, field_validator
 
 
@@ -31,7 +28,7 @@ class TmxCompanyNewsQueryParams(CompanyNewsQueryParams):
     def symbols_validate(cls, v):
         """Validate the symbols."""
         if v is None:
-            raise ValueError("Symbol is a required field for TMX.")
+            raise OpenBBError("Symbol is a required field for TMX.")
         return v
 
 
@@ -47,8 +44,11 @@ class TmxCompanyNewsData(CompanyNewsData):
 
     @field_validator("date", mode="before", check_fields=False)
     @classmethod
-    def date_validate(cls, v):  # pylint: disable=E0213
+    def date_validate(cls, v):
         """Validate the datetime format."""
+        # pylint: disable=import-outside-toplevel
+        import pytz
+
         dt = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S%z")
         return dt.astimezone(pytz.timezone("America/New_York"))
 
@@ -70,6 +70,12 @@ class TmxCompanyNewsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the raw data from the TMX endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        import json  # noqa
+        from openbb_tmx.utils import gql  # noqa
+        from openbb_tmx.utils.helpers import get_data_from_gql, get_random_agent  # noqa
+
         user_agent = get_random_agent()
         symbols = query.symbol.split(",")  # type: ignore
         results: List[Dict] = []

@@ -9,7 +9,6 @@ from openbb_core.provider.standard_models.key_executives import (
     KeyExecutivesQueryParams,
 )
 from pydantic import Field
-from yfinance import Ticker
 
 
 class YFinanceKeyExecutivesQueryParams(KeyExecutivesQueryParams):
@@ -54,14 +53,30 @@ class YFinanceKeyExecutivesFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data from YFinance."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.app.model.abstract.error import OpenBBError  # noqa
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from yfinance import Ticker
+
+        session = get_requests_session()
+
         try:
-            ticker = Ticker(query.symbol).get_info()
+            ticker = Ticker(
+                query.symbol,
+                session=session,
+                proxy=session.proxies if session.proxies else None,
+            ).get_info()
         except Exception as e:
-            raise RuntimeError(f"Error getting data for {query.symbol}: {e}") from e
+            raise OpenBBError(
+                f"Error getting data for {query.symbol} -> {e.__class__.__name__}: {e}"
+            ) from e
+
         if ticker.get("companyOfficers") is None:
-            raise ValueError(f"No executive data found for {query.symbol}")
+            raise OpenBBError(f"No executive data found for {query.symbol}")
+
         officers_data = ticker.get("companyOfficers", [])
-        [d.pop("maxAge") for d in officers_data]  # pylint: disable=W0106
+        _ = [d.pop("maxAge", None) for d in officers_data]
+
         return officers_data
 
     @staticmethod

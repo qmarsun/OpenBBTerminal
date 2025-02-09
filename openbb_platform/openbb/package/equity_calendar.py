@@ -37,7 +37,7 @@ class ROUTER_equity_calendar(Container):
         provider: Annotated[
             Optional[Literal["fmp"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fmp' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp."
             ),
         ] = None,
         **kwargs
@@ -46,14 +46,12 @@ class ROUTER_equity_calendar(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['fmp']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fmp' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp.
 
         Returns
         -------
@@ -102,7 +100,7 @@ class ROUTER_equity_calendar(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/equity/calendar/dividend",
+                        "equity.calendar.dividend",
                         ("fmp",),
                     )
                 },
@@ -129,7 +127,7 @@ class ROUTER_equity_calendar(Container):
         provider: Annotated[
             Optional[Literal["fmp"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fmp' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp."
             ),
         ] = None,
         **kwargs
@@ -138,14 +136,12 @@ class ROUTER_equity_calendar(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['fmp']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fmp' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp.
 
         Returns
         -------
@@ -200,7 +196,7 @@ class ROUTER_equity_calendar(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/equity/calendar/earnings",
+                        "equity.calendar.earnings",
                         ("fmp",),
                     )
                 },
@@ -234,7 +230,7 @@ class ROUTER_equity_calendar(Container):
         provider: Annotated[
             Optional[Literal["intrinio"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'intrinio' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio."
             ),
         ] = None,
         **kwargs
@@ -245,16 +241,14 @@ class ROUTER_equity_calendar(Container):
         ----------
         symbol : Optional[str]
             Symbol to get data for.
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         limit : Optional[int]
             The number of data entries to return.
         provider : Optional[Literal['intrinio']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'intrinio' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio.
         status : Optional[Literal['upcoming', 'priced', 'withdrawn']]
             Status of the IPO. [upcoming, priced, or withdrawn] (provider: intrinio)
         min_value : Optional[int]
@@ -337,7 +331,7 @@ class ROUTER_equity_calendar(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/equity/calendar/ipo",
+                        "equity.calendar.ipo",
                         ("intrinio",),
                     )
                 },
@@ -366,7 +360,7 @@ class ROUTER_equity_calendar(Container):
         provider: Annotated[
             Optional[Literal["fmp"]],
             OpenBBField(
-                description="The provider to use for the query, by default None.\n    If None, the provider specified in defaults is selected or 'fmp' if there is\n    no default."
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp."
             ),
         ] = None,
         **kwargs
@@ -375,14 +369,12 @@ class ROUTER_equity_calendar(Container):
 
         Parameters
         ----------
-        start_date : Union[datetime.date, None, str]
+        start_date : Union[date, None, str]
             Start date of the data, in YYYY-MM-DD format.
-        end_date : Union[datetime.date, None, str]
+        end_date : Union[date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['fmp']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'fmp' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fmp.
 
         Returns
         -------
@@ -425,7 +417,7 @@ class ROUTER_equity_calendar(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/equity/calendar/splits",
+                        "equity.calendar.splits",
                         ("fmp",),
                     )
                 },

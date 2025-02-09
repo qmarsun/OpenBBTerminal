@@ -3,12 +3,12 @@
 # pylint: disable=unused-argument
 from typing import Any, Dict, List, Optional
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.historical_dividends import (
     HistoricalDividendsData,
     HistoricalDividendsQueryParams,
 )
-from yfinance import Ticker
 
 
 class YFinanceHistoricalDividendsQueryParams(HistoricalDividendsQueryParams):
@@ -40,13 +40,22 @@ class YFinanceHistoricalDividendsFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Extract the raw data from YFinance."""
+        # pylint: disable=import-outside-toplevel
+        from openbb_core.provider.utils.helpers import get_requests_session
+        from yfinance import Ticker
+
+        session = get_requests_session()
         try:
-            ticker = Ticker(query.symbol).get_dividends()
+            ticker = Ticker(
+                query.symbol,
+                session=session,
+                proxy=session.proxies if session.proxies else None,
+            ).get_dividends()
             if isinstance(ticker, List) and not ticker or ticker.empty:  # type: ignore
-                raise ValueError(f"No dividend data found for {query.symbol}")
+                raise OpenBBError(f"No dividend data found for {query.symbol}")
         except Exception as e:
-            raise RuntimeError(f"Error getting data for {query.symbol}: {e}") from e
-        ticker.index.name = "ex_dividend_date"
+            raise OpenBBError(f"Error getting data for {query.symbol}: {e}") from e
+        ticker.index.name = "ex_dividend_date"  # type: ignore[union-attr]
         ticker.name = "amount"  # type: ignore
         if query.start_date is not None:
             ticker = ticker[ticker.index.astype(str) >= query.start_date.strftime("%Y-%m-%d")]  # type: ignore

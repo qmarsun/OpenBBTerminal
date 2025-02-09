@@ -2,27 +2,22 @@
 
 from typing import Optional
 
-from pydantic import Field
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import DATA_DESCRIPTIONS
+from pydantic import Field
 
 
 class CotSearchQueryParams(QueryParams):
     """Commitment of Traders Reports Search Query."""
 
     query: str = Field(description="Search query.", default="")
-    use_cache: Optional[bool] = Field(
-        default=True,
-        description="Whether or not to use cache.",
-    )
 
 
 class CotSearchData(Data):
     """Commitment of Traders Reports Search Data."""
 
-    code: str = Field(description="CFTC Code of the report.")
+    code: str = Field(description="CFTC market contract code of the report.")
     name: str = Field(description="Name of the underlying asset.")
     category: Optional[str] = Field(
         default=None, description="Category of the underlying asset."

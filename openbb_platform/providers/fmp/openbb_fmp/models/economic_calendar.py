@@ -2,17 +2,17 @@
 
 # pylint: disable=unused-argument
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from warnings import warn
 
+from openbb_core.app.model.abstract.error import OpenBBError
 from openbb_core.provider.abstract.fetcher import Fetcher
 from openbb_core.provider.standard_models.economic_calendar import (
     EconomicCalendarData,
     EconomicCalendarQueryParams,
 )
-from openbb_core.provider.utils.helpers import amake_request
+from openbb_core.provider.utils.errors import EmptyDataError, UnauthorizedError
 from pydantic import Field, field_validator, model_validator
 
 
@@ -96,6 +96,11 @@ class FMPEconomicCalendarFetcher(
         **kwargs: Any,
     ) -> List[Dict]:
         """Return the data from the FMP endpoint."""
+        # pylint: disable=import-outside-toplevel
+        import asyncio  # noqa
+        from openbb_core.provider.utils.helpers import amake_request
+        from openbb_fmp.utils.helpers import response_callback
+
         api_key = credentials.get("fmp_api_key") if credentials else ""
 
         base_url = "https://financialmodelingprep.com/api/v3/economic_calendar?"
@@ -122,16 +127,21 @@ class FMPEconomicCalendarFetcher(
             """Get data for one URL."""
             n_urls = 1
             try:
-                result = await amake_request(url, **kwargs)
+                result = await amake_request(url, response_callback=response_callback)
                 if result:
                     results.extend(result)
-            except Exception as e:
+            except UnauthorizedError as e:
+                raise e from e
+            except OpenBBError as e:
                 if len(urls) == 1 or (len(urls) > 1 and n_urls == len(urls)):
                     raise e from e
                 warn(f"Error in fetching part of the data from FMP -> {e}")
             n_urls += 1
 
         await asyncio.gather(*[get_one(url) for url in urls])
+
+        if not results:
+            raise EmptyDataError("The request was returned empty.")
 
         return results
 

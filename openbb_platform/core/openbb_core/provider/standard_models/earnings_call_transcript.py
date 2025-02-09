@@ -3,21 +3,20 @@
 from datetime import datetime
 from typing import List, Set, Union
 
-from pydantic import Field, field_validator
-
 from openbb_core.provider.abstract.data import Data
 from openbb_core.provider.abstract.query_params import QueryParams
 from openbb_core.provider.utils.descriptions import (
     DATA_DESCRIPTIONS,
     QUERY_DESCRIPTIONS,
 )
+from pydantic import Field, field_validator
 
 
 class EarningsCallTranscriptQueryParams(QueryParams):
     """Earnings Call Transcript rating Query."""
 
     symbol: str = Field(description=QUERY_DESCRIPTIONS.get("symbol", ""))
-    year: int = Field(description="Year of the earnings call transcript.")
+    year: Union[int, str] = Field(description="Year of the earnings call transcript.")
 
     @field_validator("symbol", mode="before", check_fields=False)
     @classmethod
